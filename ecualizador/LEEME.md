@@ -24,7 +24,7 @@ Usa **Chrome o Edge actualizados**: son los que permiten elegir la salida de aud
 - **Ajuste automático**:
   - *Voz broadcast / Voz natural*: mide tu voz y corrige la coloración del micrófono y del cuarto.
   - *Balance tonal*: ajusta suavemente el audio del PC según la música que suena.
-  - *Parlantes + sala*: emite ruido rosa y lo mide con tu micrófono para corregir tus parlantes en tu cuarto.
+  - *Parlantes + sala*: emite ruido rosa y lo mide con tu micrófono para corregir tus parlantes y subwoofer en tu cuarto. Detecta hasta dónde bajan tus parlantes y no realza fuera de ese rango (protege al subwoofer).
 - **Dinámica**: preamp automático anti-saturación, puerta de ruido, compresor, limitador y los filtros del navegador (supresión de ruido, eco y volumen automático).
 - **Exportar** a Equalizer APO / Peace (`config.txt`), GraphicEQ (Wavelet en Android) y JSON. **Importar** cualquier `ParametricEQ.txt` de AutoEq o config de Equalizer APO.
 - **Mis presets**: guarda, carga y respalda tus ajustes.
@@ -41,6 +41,14 @@ Usa **Chrome o Edge actualizados**: son los que permiten elegir la salida de aud
 - **En tiempo real dentro de la app:** pon la salida de Windows en un cable virtual (si el micrófono ya usa VB-Cable, usa [VoiceMeeter](https://vb-audio.com/Voicemeeter/), gratis) y en el canal **Audio del PC** elige Entrada = salida del cable, Salida = tus audífonos o parlantes reales.
 
 En macOS usa **BlackHole** (gratis) como cable virtual; en Linux, **EasyEffects** importa el `config.txt` de Equalizer APO.
+
+### Parlantes con subwoofer (2.1)
+Los perfiles de «Marcas» son solo para audífonos. Para parlantes:
+1. Pon la perilla del subwoofer a la mitad y el volumen a nivel de conversación.
+2. Coloca el micrófono donde te sientas, a la altura de tus oídos, apuntando a la pantalla.
+3. Canal **Audio del PC** → Salida: tus parlantes → **Ajuste automático → Parlantes + sala → Medir y ajustar**. Silencio durante la medición.
+4. Compara con **A/B**. Si hay demasiados graves, baja primero la perilla del subwoofer.
+5. **Exportar → config.txt** y cárgalo en Equalizer APO para que quede fijo en todo Windows.
 
 ## Problemas comunes
 

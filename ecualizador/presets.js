@@ -106,12 +106,16 @@ window.EQ_PRESETS = {
     { cat: 'Contenido', name: 'Gaming inmersivo', desc: 'Graves de cine con detalle en efectos.',
       bands: geq10([4, 3, 1, 0, -1, 0, 1.5, 2.5, 2, 1]), comp: COMP_OFF },
 
-    { cat: 'Equipo', name: 'Parlantes de laptop', desc: 'Protege los parlantes chicos y gana cuerpo y claridad.',
+    { cat: 'Parlantes y subwoofer', name: 'Parlantes 2.1 de escritorio', desc: 'Para parlantes con subwoofer (Logitech, Edifier, Creative, Genius…): quita el retumbe del cruce entre sub y satélites y aclara las voces.',
+      bands: [['HP', 28, 0, 0.71], ['PK', 120, -3, 1.4], ['PK', 250, -1.5, 1.2], ['PK', 2500, 1.5, 1.0], ['HSC', 9000, 1.5, 0.71]], comp: COMP_OFF },
+    { cat: 'Parlantes y subwoofer', name: 'Subwoofer: graves profundos', desc: 'Extiende los sub-graves, con filtro que protege al sub de lo que no puede reproducir.',
+      bands: [['HP', 28, 0, 0.71], ['LSC', 60, 5, 0.71], ['PK', 120, -1, 1.2]], comp: COMP_OFF },
+    { cat: 'Parlantes y subwoofer', name: 'Subwoofer: menos retumbe', desc: 'Para cuando el sub suena "bombo" o hace vibrar el escritorio.',
+      bands: [['HP', 28, 0, 0.71], ['PK', 80, -3, 1.4], ['PK', 125, -3, 1.6], ['PK', 3000, 1, 1.0]], comp: COMP_OFF },
+    { cat: 'Parlantes y subwoofer', name: 'Parlantes de laptop', desc: 'Protege los parlantes chicos y gana cuerpo y claridad.',
       bands: [['HP', 110, 0, 0.71], ['PK', 200, 3, 1.2], ['PK', 2000, -1.5, 1.0], ['HSC', 8000, 2, 0.71]], comp: COMP_OFF },
-    { cat: 'Equipo', name: 'Menos fatiga (audífonos brillantes)', desc: 'Doma agudos chillones en sesiones largas.',
+    { cat: 'Audífonos', name: 'Menos fatiga (audífonos brillantes)', desc: 'Doma agudos chillones en sesiones largas.',
       bands: [['PK', 6000, -3, 2.0], ['HSC', 10000, -2, 0.71]], comp: COMP_OFF },
-    { cat: 'Equipo', name: 'Subwoofer / graves profundos', desc: 'Extiende los sub-graves (cuidado con el volumen).',
-      bands: [['LSC', 60, 5, 0.71], ['PK', 120, -1, 1.2]], comp: COMP_OFF },
   ],
 };
 

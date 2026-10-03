@@ -726,7 +726,11 @@ registerProcessor('noise-gate', NoiseGate);
       ch: 'pc', label: 'Parlantes + sala (ruido rosa + micrófono)',
       desc: 'Emite ruido rosa por la salida de este canal y lo graba con el micrófono del canal Micrófono. Pon el micrófono donde escuchas, a la altura de los oídos, con volumen de conversación.',
       curve: (f) => interp(ROOM, f),
-      range: [35, 16000], norm: [300, 3000], lim: [-8, 4], centers: [40, 80, 160, 315, 630, 1250, 2500, 5000, 10000], hp: 0, gate: false,
+      range: [35, 16000], norm: [300, 3000], lim: [-8, 4], gate: false,
+      // Graves en tercios de octava (resonancias del cuarto), medios y agudos en medias octavas.
+      centers: [40, 50, 63, 80, 100, 125, 160, 200, 250, 355, 500, 710, 1000, 1400, 2000, 2800, 4000, 5600, 8000, 11200],
+      q: (fc) => (fc <= 250 ? 4.32 : 2.87),
+      smooth: 0, edges: true, hole: 9,
     },
   };
 
@@ -781,18 +785,33 @@ registerProcessor('noise-gate', NoiseGate);
     let s = 0, n = 0;
     THIRD.forEach((f, i) => { if (f >= T.norm[0] && f <= T.norm[1]) { s += meas[i] - tgt[i]; n++; } });
     const off = n ? s / n : 0;
+    const dev = THIRD.map((f, i) => meas[i] - (tgt[i] + off));
+    // Límites reales del equipo: donde la respuesta cae más de 6 dB en dos bandas seguidas
+    // (el subwoofer ya no baja más / el tweeter ya no sube más). Ahí no se realza, solo se recorta.
+    let lo = 0, hi = Infinity;
+    if (T.edges) {
+      for (let i = THIRD.indexOf(200); i >= 0; i--) {
+        if (dev[i] < -6 && (i === 0 || dev[i - 1] < -6)) { lo = THIRD[i + 1]; break; }
+      }
+      for (let i = THIRD.indexOf(4000); i < THIRD.length; i++) {
+        if (dev[i] < -6 && (i === THIRD.length - 1 || dev[i + 1] < -6)) { hi = THIRD[i - 1]; break; }
+      }
+    }
     let corr = THIRD.map((f, i) => {
       if (f < T.range[0] || f > T.range[1]) return 0;
       if (floor && meas[i] - floor[i] < 6) return 0; // señal poco confiable en esa banda
-      return clamp(tgt[i] + off - meas[i], T.lim[0] * 1.5, T.lim[1] * 1.5);
+      const c = -dev[i];
+      if (c > 0 && (f < lo || f > hi)) return 0; // fuera del rango del equipo
+      if (T.hole && c > T.hole) return 0; // hueco profundo del cuarto: realzarlo no sirve
+      return clamp(c, T.lim[0] * 1.5, T.lim[1] * 1.5);
     });
-    for (let p = 0; p < 2; p++) {
+    for (let p = 0; p < (T.smooth == null ? 2 : T.smooth); p++) {
       corr = corr.map((v, i) => 0.25 * (i > 0 ? corr[i - 1] : v) + 0.5 * v + 0.25 * (i < corr.length - 1 ? corr[i + 1] : v));
     }
-    return corr.map((v) => clamp(v * strength, T.lim[0], T.lim[1]));
+    return { corr: corr.map((v) => clamp(v * strength, T.lim[0], T.lim[1])), lo, hi };
   }
 
-  function fitBands(corr, T, fs) {
+  function fitBands(corr, T, fs, lo) {
     const at = (fc) => {
       for (let i = 1; i < THIRD.length; i++) {
         if (fc <= THIRD[i]) {
@@ -803,16 +822,18 @@ registerProcessor('noise-gate', NoiseGate);
       return corr[corr.length - 1];
     };
     const desired = T.centers.map(at);
-    const bands = T.centers.map((fc, i) => ({ t: 'PK', f: fc, g: desired[i], q: 1.41, on: true }));
+    const bands = T.centers.map((fc, i) => ({ t: 'PK', f: fc, g: desired[i], q: T.q ? T.q(fc) : 1.41, on: true }));
     const cf = Float64Array.from(T.centers);
-    for (let it = 0; it < 16; it++) {
+    for (let it = 0; it < 40; it++) {
       const r = responseDb(bands, cf, fs);
       bands.forEach((b, i) => { b.g = clamp(b.g + 0.6 * (desired[i] - r[i]), T.lim[0] - 2, T.lim[1] + 2); });
     }
     const out = bands.map((b) => Object.assign(b, { g: round(b.g, 1) })).filter((b) => Math.abs(b.g) >= 0.3);
-    if (T.hp) out.unshift({ t: 'HP', f: T.hp, g: 0, q: 0.71, on: true });
+    // Parlantes: filtro protector bajo lo que el subwoofer puede reproducir (nunca por encima de 30 Hz).
+    const hp = T.edges ? clamp(Math.round(0.6 * (lo || 0)), 20, 30) : T.hp;
+    if (hp) out.unshift({ t: 'HP', f: hp, g: 0, q: 0.71, on: true });
     // error residual dentro del rango útil
-    const idx = THIRD.map((f, i) => i).filter((i) => THIRD[i] >= Math.max(T.range[0], T.hp * 1.5 || 0) && THIRD[i] <= T.range[1]);
+    const idx = THIRD.map((f, i) => i).filter((i) => THIRD[i] >= Math.max(T.range[0], hp * 1.5 || 0) && THIRD[i] <= T.range[1]);
     const resp = responseDb(out.filter((b) => b.t === 'PK'), Float64Array.from(idx.map((i) => THIRD[i])), fs);
     let e = 0;
     idx.forEach((i, k) => { e += Math.pow(resp[k] - corr[i], 2); });
@@ -871,8 +892,8 @@ registerProcessor('noise-gate', NoiseGate);
       levels = thirdOct(avg.pow, fs / an.fftSize);
     }
 
-    const corr = designCorrection(levels, T, strength, floor);
-    const fit = fitBands(corr, T, fs);
+    const design = designCorrection(levels, T, strength, floor);
+    const fit = fitBands(design.corr, T, fs, design.lo);
     if (!fit.bands.some((b) => b.t === 'PK')) {
       return '<b>Listo.</b> Tu señal ya está muy cerca del objetivo: no hace falta corregir.';
     }
@@ -882,9 +903,18 @@ registerProcessor('noise-gate', NoiseGate);
     s.presetName = 'Auto: ' + T.label;
     ch.changed('struct');
     const top = fit.bands.filter((b) => b.t === 'PK').sort((a, b) => Math.abs(b.g) - Math.abs(a.g)).slice(0, 4);
+    let range = '';
+    if (T.edges) {
+      range = '<p class="small">Tus parlantes reproducen bien desde ~' + fmtHz(design.lo || 40) + ' hasta ~' + fmtHz(isFinite(design.hi) ? design.hi : 16000) +
+        '. Fuera de ese rango la app no realza, para no forzar el subwoofer ni los tweeters.</p>';
+      if (design.lo > 80) {
+        range += '<p class="small">Si tu subwoofer sí suena más abajo, es probable que el micrófono no capte bien los graves ' +
+          '(pasa con micrófonos de audífonos o de laptop). En ese caso ajusta los graves con la perilla del subwoofer.</p>';
+      }
+    }
     return '<b>Listo.</b> Se aplicaron ' + fit.bands.length + ' bandas (error residual ±' + fit.err.toFixed(1) + ' dB). Cambios principales:<ul>' +
       top.map((b) => '<li>' + fmtDb(b.g) + ' en ' + fmtHz(b.f) + ' · ' + region(b.f) + '</li>').join('') +
-      '</ul><span class="small muted">Compara con A/B. Si suena exagerado, baja la intensidad y vuelve a medir.</span>';
+      '</ul>' + range + '<span class="small muted">Compara con A/B. Si suena exagerado, baja la intensidad y vuelve a medir.</span>';
   }
 
   async function measureRoom(pc, secs, prog, alive) {
