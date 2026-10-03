@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ecualizador Libre</title>
+<meta name="description" content="Ecualizador paramétrico local y gratuito para el micrófono y el audio del PC.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e8f7e'/%3E%3Cpath d='M8 22V14M13 22V9M18 22V16M23 22V11' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M8 22V14M13 22V9M18 22V16M23 22V11"/></svg>
+    <div>
+      <h1>Ecualizador Libre</h1>
+      <p>Micrófono + audio del PC · 100% local y gratis</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button id="btnPerm" class="btn" hidden>Permitir dispositivos</button>
+    <button id="btnHelp" class="btn ghost">Guía de uso</button>
+    <button id="btnTheme" class="btn ghost icon" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema">◐</button>
+  </div>
+</header>
+
+<div id="compat" class="banner" hidden></div>
+
+<nav class="tabs" role="tablist" aria-label="Canal">
+  <button class="tab" role="tab" data-ch="mic">
+    <span class="tab-ico" aria-hidden="true">🎙️</span>
+    <span class="tab-txt"><b>Micrófono</b><small data-status>Detenido</small></span>
+    <span class="mini-meter" aria-hidden="true"><i></i></span>
+  </button>
+  <button class="tab" role="tab" data-ch="pc">
+    <span class="tab-ico" aria-hidden="true">🔊</span>
+    <span class="tab-txt"><b>Audio del PC</b><small data-status>Detenido</small></span>
+    <span class="mini-meter" aria-hidden="true"><i></i></span>
+  </button>
+</nav>
+
+<main class="layout">
+  <section class="col-main">
+
+    <div class="card" id="ioCard">
+      <div class="io-grid">
+        <label class="field">
+          <span>Fuente</span>
+          <select id="srcType"></select>
+        </label>
+        <label class="field" id="inField">
+          <span>Entrada <button type="button" id="btnRefresh" class="link" title="Actualizar lista de dispositivos">↻</button></span>
+          <select id="inDev"></select>
+        </label>
+        <div class="field" id="fileField" hidden>
+          <span>Archivo de audio</span>
+          <input type="file" id="fileIn" accept="audio/*,video/*">
+        </div>
+        <label class="field">
+          <span>Salida</span>
+          <select id="outDev"></select>
+        </label>
+        <div class="io-actions">
+          <button id="btnStart" class="btn primary">▶ Iniciar</button>
+          <label class="switch" title="Enviar el audio procesado a la salida elegida">
+            <input type="checkbox" id="monitor"><span>Salida activa</span>
+          </label>
+        </div>
+      </div>
+      <div id="playerBox"></div>
+      <p class="hint" id="ioHint"></p>
+      <div class="meters">
+        <div class="meter">
+          <span class="meter-lbl">Entrada</span>
+          <div class="bar"><i id="mIn"></i><b id="mInPk"></b></div>
+          <output id="mInTxt">—</output>
+        </div>
+        <div class="meter">
+          <span class="meter-lbl">Salida</span>
+          <div class="bar"><i id="mOut"></i><b id="mOutPk"></b></div>
+          <output id="mOutTxt">—</output>
+        </div>
+        <div class="meter-info">
+          <span id="clip" class="pill danger" hidden>SATURA</span>
+          <span id="gateLed" class="pill" hidden>Gate</span>
+          <span id="grTxt" class="pill" hidden></span>
+          <span id="latency" class="muted"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card graph-card">
+      <div class="card-head">
+        <h2>Ecualizador paramétrico <small id="presetName" class="muted"></small></h2>
+        <div class="toolbar">
+          <button id="btnBypass" class="btn toggle" aria-pressed="false" title="Compara con y sin ecualizador">A/B</button>
+          <select id="rangeSel" title="Rango vertical">
+            <option value="6">±6 dB</option>
+            <option value="12">±12 dB</option>
+            <option value="18" selected>±18 dB</option>
+            <option value="24">±24 dB</option>
+          </select>
+          <label class="switch sm"><input type="checkbox" id="showSpec" checked><span>Espectro</span></label>
+          <button id="btnFlat" class="btn ghost" title="Todas las bandas a 0 dB">Aplanar</button>
+        </div>
+      </div>
+      <div class="graph-wrap">
+        <canvas id="graph" aria-label="Curva del ecualizador y espectro"></canvas>
+        <div id="tip" class="tip" hidden></div>
+      </div>
+      <div class="graph-foot">
+        <p class="hint">Arrastra los puntos · Rueda = ancho (Q) · Doble clic = nueva banda · Clic derecho = borrar · Shift = ajuste fino</p>
+        <div class="legend">
+          <span><i class="sw curve"></i>Curva EQ</span>
+          <span><i class="sw post"></i>Espectro procesado</span>
+          <span><i class="sw pre"></i>Original</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Bandas <small id="bandCount" class="muted"></small></h2>
+        <div class="toolbar">
+          <button id="btnAdd" class="btn">+ Banda</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="bands">
+          <thead><tr><th>#</th><th>On</th><th>Tipo</th><th>Frecuencia</th><th>Ganancia</th><th>Q</th><th></th></tr></thead>
+          <tbody id="bandRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <aside class="col-side">
+    <div class="card" id="presetCard">
+      <div class="seg" role="tablist">
+        <button data-ptab="presets" class="active">Presets</button>
+        <button data-ptab="brands">Marcas</button>
+        <button data-ptab="mine">Mis presets</button>
+        <button data-ptab="io">Exportar</button>
+      </div>
+
+      <div data-pane="presets">
+        <div id="presetList" class="preset-list"></div>
+      </div>
+
+      <div data-pane="brands" hidden>
+        <div id="brandMicNote" class="note" hidden>
+          Los perfiles de marcas de este panel corrigen <b>audífonos</b>: úsalos en el canal <b>Audio del PC</b>.
+          Para sonar como un micrófono de marca ve a <b>Presets → Estilo de marca</b>.
+        </div>
+        <div id="brandBody">
+          <p class="small muted">Corrección de 67 audífonos populares hacia la curva Harman, con datos de <b>AutoEq</b> (mediciones de oratory1990, crinacle, Rtings…).</p>
+          <input type="search" id="brandSearch" class="input" placeholder="Buscar modelo: Sony, HD 600, AirPods…">
+          <div id="brandList" class="brand-list"></div>
+          <div class="brand-actions">
+            <div id="brandSel" class="small muted">Elige un modelo.</div>
+            <div class="row">
+              <button id="btnBrandFix" class="btn primary" disabled title="Reemplaza la EQ con la corrección del modelo">Corregir mis audífonos</button>
+              <button id="btnBrandEmu" class="btn" disabled title="Agrega la firma de sonido del modelo encima de tu EQ actual">Emular su sonido</button>
+            </div>
+            <p class="small muted">«Emular» funciona mejor si antes aplicaste la corrección de <b>tus</b> audífonos.</p>
+          </div>
+        </div>
+      </div>
+
+      <div data-pane="mine" hidden>
+        <div class="row">
+          <input type="text" id="myName" class="input" placeholder="Nombre del preset" maxlength="60">
+          <button id="btnSaveMine" class="btn primary">Guardar</button>
+        </div>
+        <div id="mineList" class="mine-list"></div>
+        <div class="row wrap">
+          <button id="btnMineExport" class="btn ghost">Respaldar todos (.json)</button>
+          <label class="btn ghost file-btn">Restaurar respaldo<input type="file" id="mineImport" accept=".json,application/json" hidden></label>
+        </div>
+      </div>
+
+      <div data-pane="io" hidden>
+        <h3>Exportar la EQ actual</h3>
+        <div class="row wrap">
+          <button id="btnCopyApo" class="btn primary">Copiar para Equalizer APO</button>
+          <button id="btnDlApo" class="btn">config.txt (APO / Peace)</button>
+          <button id="btnDlGeq" class="btn">GraphicEQ (Wavelet / APO)</button>
+          <button id="btnDlJson" class="btn ghost">JSON</button>
+        </div>
+        <p class="small muted">Equalizer APO aplica la EQ a todo Windows sin dejar esta app abierta. El compresor y el gate no se exportan.</p>
+        <h3>Importar</h3>
+        <textarea id="importTxt" class="input" rows="6" spellcheck="false" placeholder="Pega aquí un ParametricEQ.txt de AutoEq o un config de Equalizer APO:&#10;Preamp: -6.2 dB&#10;Filter 1: ON LSC Fc 105 Hz Gain 6.5 dB Q 0.70&#10;Filter 2: ON PK Fc 3000 Hz Gain -2.1 dB Q 1.41"></textarea>
+        <div class="row wrap">
+          <button id="btnImport" class="btn primary">Importar texto</button>
+          <label class="btn ghost file-btn">Abrir archivo…<input type="file" id="importFile" accept=".txt,.json,text/plain,application/json" hidden></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="autoCard">
+      <div class="card-head"><h2>Ajuste automático</h2></div>
+      <label class="field">
+        <span>Objetivo</span>
+        <select id="autoTarget"></select>
+      </label>
+      <p class="small muted" id="autoDesc"></p>
+      <div class="grid2">
+        <label class="field">
+          <span>Duración</span>
+          <select id="autoDur">
+            <option value="5">5 s</option>
+            <option value="8" selected>8 s</option>
+            <option value="12">12 s</option>
+            <option value="20">20 s</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Intensidad <output id="autoStrTxt">70%</output></span>
+          <input type="range" id="autoStr" min="30" max="100" step="5" value="70">
+        </label>
+      </div>
+      <button id="btnAuto" class="btn primary block">Medir y ajustar</button>
+      <div class="progress" hidden><i id="autoProg"></i></div>
+      <div id="autoResult" class="auto-result"></div>
+    </div>
+
+    <div class="card" id="dynCard">
+      <div class="card-head"><h2>Ganancia y dinámica</h2></div>
+
+      <div class="dyn">
+        <div class="dyn-head">
+          <b>Preamp</b>
+          <label class="switch sm"><input type="checkbox" id="preAuto"><span>Automático (anti-saturación)</span></label>
+        </div>
+        <div class="slider-row"><input type="range" id="preamp" min="-24" max="12" step="0.1"><output id="preTxt"></output></div>
+      </div>
+
+      <div class="dyn">
+        <div class="dyn-head"><b>Ganancia de salida</b></div>
+        <div class="slider-row"><input type="range" id="outGain" min="-24" max="12" step="0.5"><output id="outTxt"></output></div>
+      </div>
+
+      <div class="dyn" id="gateBox">
+        <div class="dyn-head">
+          <b>Puerta de ruido (gate)</b>
+          <label class="switch sm"><input type="checkbox" id="gateOn"><span>Activa</span></label>
+        </div>
+        <p class="small muted">Silencia el ruido de fondo cuando no hablas.</p>
+        <div class="slider-row"><span>Umbral</span><input type="range" id="gateThr" min="-80" max="-20" step="1"><output id="gateThrTxt"></output></div>
+        <div class="slider-row"><span>Cierre</span><input type="range" id="gateRel" min="50" max="800" step="10"><output id="gateRelTxt"></output></div>
+      </div>
+
+      <div class="dyn">
+        <div class="dyn-head">
+          <b id="compTitle">Compresor</b>
+          <label class="switch sm"><input type="checkbox" id="compOn"><span>Activo</span></label>
+        </div>
+        <div class="slider-row"><span>Umbral</span><input type="range" id="compThr" min="-60" max="0" step="1"><output id="compThrTxt"></output></div>
+        <div class="slider-row"><span>Ratio</span><input type="range" id="compRatio" min="1" max="20" step="0.5"><output id="compRatioTxt"></output></div>
+        <div class="slider-row"><span>Ataque</span><input type="range" id="compAtk" min="1" max="100" step="1"><output id="compAtkTxt"></output></div>
+        <div class="slider-row"><span>Liberación</span><input type="range" id="compRel" min="20" max="1000" step="10"><output id="compRelTxt"></output></div>
+        <div class="slider-row"><span>Ganancia</span><input type="range" id="compMk" min="0" max="24" step="0.5"><output id="compMkTxt"></output></div>
+      </div>
+
+      <div class="dyn">
+        <div class="dyn-head">
+          <b>Limitador</b>
+          <label class="switch sm"><input type="checkbox" id="limOn"><span>Activo</span></label>
+        </div>
+        <div class="slider-row"><span>Techo</span><input type="range" id="limCeil" min="-12" max="0" step="0.5"><output id="limCeilTxt"></output></div>
+      </div>
+
+      <div class="dyn" id="webrtcBox">
+        <div class="dyn-head"><b>Procesamiento del navegador</b></div>
+        <p class="small muted">Útil en llamadas. Para grabar o hacer stream con buena calidad, déjalos apagados.</p>
+        <label class="switch sm"><input type="checkbox" id="wNs"><span>Supresión de ruido</span></label>
+        <label class="switch sm"><input type="checkbox" id="wAec"><span>Cancelación de eco</span></label>
+        <label class="switch sm"><input type="checkbox" id="wAgc"><span>Control automático de volumen</span></label>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<footer class="foot">
+  <p>Ecualizador Libre · Funciona sin internet · Perfiles de audífonos: <a href="https://github.com/jaakkopasanen/AutoEq" target="_blank" rel="noopener">AutoEq</a> (MIT).
+  Los presets «Estilo de marca» son aproximaciones, no presets oficiales de los fabricantes.</p>
+</footer>
+
+<dialog id="helpDlg">
+  <form method="dialog" class="dlg-head"><h2>Guía de uso</h2><button class="btn ghost icon" aria-label="Cerrar">✕</button></form>
+  <div class="dlg-body">
+    <h3>1 · Micrófono ecualizado en Discord, OBS, Zoom, Meet o WhatsApp</h3>
+    <ol>
+      <li>Instala <b>VB-Audio Virtual Cable</b> (gratis): <a href="https://vb-audio.com/Cable/" target="_blank" rel="noopener">vb-audio.com/Cable</a>. Reinicia si te lo pide.</li>
+      <li>Canal <b>Micrófono</b> → Entrada: tu micrófono · Salida: <b>CABLE Input (VB-Audio Virtual Cable)</b> → <b>Iniciar</b>.</li>
+      <li>En Discord/OBS/Zoom elige como micrófono <b>CABLE Output (VB-Audio Virtual Cable)</b>.</li>
+      <li>Deja esta ventana abierta (puede estar minimizada).</li>
+    </ol>
+    <p class="note">Para escucharte a ti mismo usa audífonos: con parlantes se acopla (pitido).</p>
+
+    <h3>2 · Ecualizar TODO el audio del PC</h3>
+    <p><b>Opción A (recomendada, latencia cero):</b> <b>Equalizer APO</b> + <b>Peace</b>, gratis y de código abierto.</p>
+    <ol>
+      <li>Instala <a href="https://sourceforge.net/projects/equalizerapo/" target="_blank" rel="noopener">Equalizer APO</a> y marca tus audífonos/parlantes en el Configurator.</li>
+      <li>Diseña aquí tu EQ (presets, Marcas o Ajuste automático).</li>
+      <li><b>Exportar → config.txt</b> y reemplaza <code>C:\Program Files\EqualizerAPO\config\config.txt</code> (o impórtalo en Peace).</li>
+    </ol>
+    <p><b>Opción B (en tiempo real dentro de la app):</b> necesitas un cable virtual libre (si el micrófono ya usa VB-Cable, instala <b>VoiceMeeter</b>, gratis).</p>
+    <ol>
+      <li>Windows → Configuración → Sonido → Salida: <b>el cable virtual</b>.</li>
+      <li>Canal <b>Audio del PC</b> → Entrada: la salida del cable (p. ej. <b>CABLE Output</b> o <b>VoiceMeeter Output</b>) · Salida: tus audífonos o parlantes reales → <b>Iniciar</b>.</li>
+    </ol>
+    <p><b>Opción C (solo analizar):</b> Fuente «Audio del sistema (compartir pantalla)» o la entrada «Mezcla estéreo». Úsalo para ver el espectro y para el Ajuste automático; luego exporta a Equalizer APO. No envíes ese audio a los mismos parlantes: se duplica y hace eco.</p>
+
+    <h3>3 · Perfiles de marcas</h3>
+    <p><b>Corregir mis audífonos</b>: busca tu modelo y aplícalo en el canal Audio del PC. Sonarán neutros y balanceados (curva Harman).<br>
+    <b>Emular su sonido</b>: después de corregir los tuyos, agrega la firma de otro modelo (p. ej. suena como unos Beats o unos Sennheiser HD 600).</p>
+
+    <h3>4 · Ajuste automático</h3>
+    <ul>
+      <li><b>Micrófono:</b> habla normal durante la medición. La app compara tu voz con el espectro promedio de la voz humana y corrige la coloración del micrófono y del cuarto.</li>
+      <li><b>Audio del PC · balance tonal:</b> reproduce música variada; ajusta el balance hacia el promedio de música comercial.</li>
+      <li><b>Parlantes + sala:</b> la app emite ruido rosa por la salida del canal PC y lo graba con el micrófono del canal Micrófono. Pon el micrófono donde escuchas, a la altura de tus oídos, con volumen de conversación.</li>
+    </ul>
+
+    <h3>5 · Consejos</h3>
+    <ul>
+      <li>Mejor recortar que realzar. El preamp automático baja el volumen general para que nada sature.</li>
+      <li>Usa <b>A/B</b> para comparar con y sin EQ.</li>
+      <li>Recomendado: Chrome o Edge actualizados (permiten elegir la salida de audio).</li>
+      <li>Mac: usa <b>BlackHole</b> (gratis) como cable virtual. Linux: <b>EasyEffects</b> importa el config.txt de APO.</li>
+    </ul>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="presets.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

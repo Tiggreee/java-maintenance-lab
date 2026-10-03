@@ -1,0 +1,191 @@
+/*
+ * Ecualizador Libre — presets.
+ * Formato de banda: [tipo, frecuencia Hz, ganancia dB, Q]
+ *   PK = pico/campana · LSC = shelf de graves · HSC = shelf de agudos
+ *   HP = pasa altos · LP = pasa bajos · NO = notch (elimina una frecuencia)
+ */
+'use strict';
+
+// Ecualizador gráfico clásico de 10 bandas (centros ISO por octava).
+const GEQ10_F = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+function geq10(gains) {
+  return GEQ10_F.map((f, i) => ['PK', f, gains[i], 1.41]);
+}
+
+const COMP_OFF = { on: false };
+const GATE_OFF = { on: false };
+
+window.EQ_PRESETS = {
+  mic: [
+    { cat: 'Básicos', name: 'Plano (10 bandas)', desc: 'Sin cambios. Punto de partida para ajustar a mano.',
+      bands: geq10([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), comp: COMP_OFF, gate: GATE_OFF },
+    { cat: 'Básicos', name: 'Limpieza básica', desc: 'Quita retumbe, golpes en la mesa y ruido de aire acondicionado sin cambiar tu tono.',
+      bands: [['HP', 80, 0, 0.71], ['PK', 200, -1.5, 1.0]], comp: COMP_OFF, gate: GATE_OFF },
+
+    { cat: 'Voz', name: 'Voz clara · Podcast', desc: 'Menos encierro, más presencia y aire. El más versátil.',
+      bands: [['HP', 80, 0, 0.71], ['PK', 220, -2, 1.0], ['PK', 450, -2.5, 1.4], ['PK', 3000, 3, 1.0], ['HSC', 10000, 2.5, 0.71]],
+      comp: { on: true, threshold: -20, ratio: 3, attack: 5, release: 120, makeup: 4 }, gate: GATE_OFF },
+    { cat: 'Voz', name: 'Locutor de radio (broadcast)', desc: 'Graves cálidos, medios limpios y la voz al frente. Compresión firme.',
+      bands: [['HP', 70, 0, 0.71], ['LSC', 120, 3, 0.71], ['PK', 320, -3, 1.4], ['PK', 2500, 3, 1.0], ['PK', 6500, -2, 3.0], ['HSC', 12000, 2, 0.71]],
+      comp: { on: true, threshold: -24, ratio: 4, attack: 3, release: 150, makeup: 6 }, gate: { on: true, threshold: -52, release: 200 } },
+    { cat: 'Voz', name: 'Streaming / Gaming (Discord, Twitch)', desc: 'Se te entiende por encima del juego y la música.',
+      bands: [['HP', 100, 0, 0.71], ['PK', 250, -3, 1.0], ['PK', 3500, 4, 1.0], ['PK', 7000, -2, 3.0], ['HSC', 10000, 1, 0.71]],
+      comp: { on: true, threshold: -22, ratio: 3.5, attack: 4, release: 120, makeup: 5 }, gate: { on: true, threshold: -48, release: 180 } },
+    { cat: 'Voz', name: 'Llamadas (Zoom, Meet, Teams, WhatsApp)', desc: 'Banda de voz optimizada para los códecs de videollamada.',
+      bands: [['HP', 120, 0, 0.71], ['PK', 300, -2, 1.0], ['PK', 2500, 4, 0.8], ['LP', 9000, 0, 0.71]],
+      comp: { on: true, threshold: -20, ratio: 2.5, attack: 5, release: 150, makeup: 3 }, gate: GATE_OFF },
+    { cat: 'Voz', name: 'Voz cálida', desc: 'Más cuerpo y menos dureza en los agudos.',
+      bands: [['HP', 60, 0, 0.71], ['LSC', 150, 3, 0.71], ['PK', 3000, 1.5, 1.0], ['HSC', 8000, -1.5, 0.71]], comp: COMP_OFF, gate: GATE_OFF },
+    { cat: 'Voz', name: 'Canto', desc: 'Brillo y aire sin perder cuerpo. Compresión suave.',
+      bands: [['HP', 80, 0, 0.71], ['PK', 250, -2, 1.2], ['PK', 5000, 2, 1.0], ['HSC', 12000, 3, 0.71]],
+      comp: { on: true, threshold: -22, ratio: 2.5, attack: 10, release: 200, makeup: 3 }, gate: GATE_OFF },
+
+    { cat: 'Arreglar problemas', name: 'Reducir sibilancia (eses)', desc: 'Suaviza las "s", "z" y "ch" ásperas.',
+      bands: [['HP', 80, 0, 0.71], ['PK', 6500, -5, 3.0], ['PK', 8500, -3, 3.0]], comp: COMP_OFF, gate: GATE_OFF },
+    { cat: 'Arreglar problemas', name: 'Quitar zumbido eléctrico 60 Hz', desc: 'Red de 60 Hz: México, Centroamérica, Colombia, Venezuela, Ecuador, Perú, Brasil, EE. UU.',
+      bands: [['HP', 70, 0, 0.71], ['NO', 60, 0, 10], ['NO', 120, 0, 10], ['NO', 180, 0, 10], ['NO', 240, 0, 12]], comp: COMP_OFF, gate: GATE_OFF },
+    { cat: 'Arreglar problemas', name: 'Quitar zumbido eléctrico 50 Hz', desc: 'Red de 50 Hz: Argentina, Chile, Uruguay, Paraguay, Bolivia, España.',
+      bands: [['HP', 60, 0, 0.71], ['NO', 50, 0, 10], ['NO', 100, 0, 10], ['NO', 150, 0, 10], ['NO', 200, 0, 12]], comp: COMP_OFF, gate: GATE_OFF },
+    { cat: 'Arreglar problemas', name: 'Cuarto con eco / retumbe', desc: 'Recorta las frecuencias que más resuenan en cuartos vacíos.',
+      bands: [['HP', 100, 0, 0.71], ['PK', 180, -3, 1.2], ['PK', 350, -3, 1.4], ['PK', 700, -1.5, 1.4], ['PK', 3000, 2, 1.0]],
+      comp: COMP_OFF, gate: { on: true, threshold: -45, release: 150 } },
+    { cat: 'Arreglar problemas', name: 'Micrófono de laptop o audífonos baratos', desc: 'Quita lo "enlatado" y el siseo agudo.',
+      bands: [['HP', 120, 0, 0.71], ['PK', 350, -3, 1.2], ['PK', 1000, -1, 1.0], ['PK', 3000, 3, 1.0], ['HSC', 9000, -2, 0.71]],
+      comp: { on: true, threshold: -24, ratio: 3, attack: 5, release: 150, makeup: 4 }, gate: { on: true, threshold: -46, release: 180 } },
+
+    // Aproximaciones inspiradas en las curvas de respuesta publicadas. NO son presets oficiales de las marcas.
+    { cat: 'Estilo de marca (aprox.)', name: 'Estilo Shure SM7B (presencia)', desc: 'Cálido y oscuro arriba, con el realce de presencia del interruptor.',
+      bands: [['HP', 60, 0, 0.71], ['LSC', 150, 2, 0.71], ['PK', 400, -1.5, 1.0], ['PK', 4500, 4, 0.9], ['HSC', 12000, -2, 0.71]],
+      comp: { on: true, threshold: -22, ratio: 3, attack: 5, release: 150, makeup: 4 }, gate: GATE_OFF },
+    { cat: 'Estilo de marca (aprox.)', name: 'Estilo Shure SM58 (en vivo)', desc: 'Graves recortados y el clásico pico de presencia en 5 kHz.',
+      bands: [['HP', 100, 0, 0.71], ['PK', 200, -1, 1.0], ['PK', 5000, 5, 1.0], ['HSC', 11000, -4, 0.71]], comp: COMP_OFF, gate: GATE_OFF },
+    { cat: 'Estilo de marca (aprox.)', name: 'Estilo Electro-Voice RE20 (radio)', desc: 'Muy plano y suave, el sonido de cabina de radio.',
+      bands: [['HP', 70, 0, 0.71], ['LSC', 120, 1.5, 0.71], ['PK', 3000, 1.5, 1.0], ['HSC', 10000, -1, 0.71]],
+      comp: { on: true, threshold: -24, ratio: 3.5, attack: 3, release: 150, makeup: 5 }, gate: GATE_OFF },
+    { cat: 'Estilo de marca (aprox.)', name: 'Estilo Neumann U 87 (estudio)', desc: 'Condensador de estudio: aire y detalle arriba de 8 kHz.',
+      bands: [['HP', 50, 0, 0.71], ['PK', 300, -1, 1.0], ['PK', 10000, 3, 1.2], ['HSC', 14000, 1, 0.71]], comp: COMP_OFF, gate: GATE_OFF },
+    { cat: 'Estilo de marca (aprox.)', name: 'Estilo RØDE PodMic (podcast)', desc: 'Dinámico de podcast: cuerpo y presencia sin dureza.',
+      bands: [['HP', 75, 0, 0.71], ['LSC', 160, 2.5, 0.71], ['PK', 3500, 3, 1.1], ['PK', 7000, -1.5, 2.5]],
+      comp: { on: true, threshold: -22, ratio: 3, attack: 5, release: 130, makeup: 4 }, gate: GATE_OFF },
+    { cat: 'Estilo de marca (aprox.)', name: 'Mejorar Blue Yeti / HyperX QuadCast (USB)', desc: 'Corrige lo retumbante y lo áspero de los condensadores USB populares.',
+      bands: [['HP', 90, 0, 0.71], ['PK', 250, -2.5, 1.2], ['PK', 3000, 2, 1.0], ['PK', 7500, -2.5, 3.0]],
+      comp: { on: true, threshold: -22, ratio: 3, attack: 5, release: 150, makeup: 4 }, gate: { on: true, threshold: -50, release: 200 } },
+  ],
+
+  pc: [
+    { cat: 'Básicos', name: 'Plano (10 bandas)', desc: 'Sin cambios. Ecualizador gráfico clásico de 10 bandas.',
+      bands: geq10([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), comp: COMP_OFF },
+    { cat: 'Básicos', name: 'Volumen bajo / de noche (loudness)', desc: 'Compensa que a poco volumen el oído pierde graves y agudos.',
+      bands: geq10([5, 4, 2, 0, 0, 0, 0, 1, 2.5, 3.5]), comp: COMP_OFF },
+    { cat: 'Básicos', name: 'Nivelar volumen (películas de noche)', desc: 'Explosiones más bajas y diálogos más altos.',
+      bands: [['LSC', 100, -2, 0.71], ['PK', 2500, 3, 1.0]], comp: { on: true, threshold: -30, ratio: 4, attack: 10, release: 250, makeup: 8 } },
+
+    { cat: 'Música', name: 'Bass boost', desc: 'Graves potentes sin embarrar las voces.',
+      bands: [['LSC', 90, 6, 0.71], ['PK', 250, -1, 1.0]], comp: COMP_OFF },
+    { cat: 'Música', name: 'Pop', desc: 'Voces al frente y brillo moderado.',
+      bands: geq10([-1, 0, 1.5, 3, 2, 0, -1, 0, 1.5, 2]), comp: COMP_OFF },
+    { cat: 'Música', name: 'Rock', desc: 'Bombo y guitarras con mordida.',
+      bands: geq10([4, 3, 2, 0, -1.5, -1, 1, 2.5, 3, 3]), comp: COMP_OFF },
+    { cat: 'Música', name: 'Electrónica', desc: 'Curva en V: sub-graves y agudos brillantes.',
+      bands: geq10([5, 4, 1.5, 0, -1.5, 0, 1, 2, 3.5, 4]), comp: COMP_OFF },
+    { cat: 'Música', name: 'Reggaetón / Hip-hop / Trap', desc: 'Bajo profundo y voces claras.',
+      bands: geq10([5, 5, 3, 1, -1, -1, 1, 0, 1.5, 2]), comp: COMP_OFF },
+    { cat: 'Música', name: 'Salsa / Cumbia / Merengue', desc: 'Metales y percusión con presencia, bajo redondo.',
+      bands: geq10([2, 2, 1, 0, -0.5, 0.5, 2, 2.5, 2, 1.5]), comp: COMP_OFF },
+    { cat: 'Música', name: 'Jazz / Acústica', desc: 'Natural y cálido, con aire en los platillos.',
+      bands: geq10([2, 1.5, 1, 1, -1, -1, 0, 1, 2, 2.5]), comp: COMP_OFF },
+    { cat: 'Música', name: 'Clásica / Orquesta', desc: 'Profundidad y espacio sin exagerar.',
+      bands: geq10([3, 2, 1, 0, 0, 0, 0, -1, 1.5, 2.5]), comp: COMP_OFF },
+
+    { cat: 'Contenido', name: 'Voces · YouTube · Podcasts', desc: 'Diálogo claro, sin retumbe.',
+      bands: geq10([-3, -2, -1, 0, 1, 2.5, 3.5, 2.5, 1, 0]), comp: COMP_OFF },
+    { cat: 'Contenido', name: 'Películas y series', desc: 'Impacto en los graves y diálogos inteligibles.',
+      bands: geq10([4, 3, 1, 0, 0, 1, 2.5, 1.5, 1, 1]), comp: COMP_OFF },
+    { cat: 'Contenido', name: 'Gaming competitivo (pasos)', desc: 'Baja explosiones, realza pasos y recargas.',
+      bands: geq10([-4, -3, -2, -1, 0, 1, 3, 4, 2.5, 0]), comp: COMP_OFF },
+    { cat: 'Contenido', name: 'Gaming inmersivo', desc: 'Graves de cine con detalle en efectos.',
+      bands: geq10([4, 3, 1, 0, -1, 0, 1.5, 2.5, 2, 1]), comp: COMP_OFF },
+
+    { cat: 'Equipo', name: 'Parlantes de laptop', desc: 'Protege los parlantes chicos y gana cuerpo y claridad.',
+      bands: [['HP', 110, 0, 0.71], ['PK', 200, 3, 1.2], ['PK', 2000, -1.5, 1.0], ['HSC', 8000, 2, 0.71]], comp: COMP_OFF },
+    { cat: 'Equipo', name: 'Menos fatiga (audífonos brillantes)', desc: 'Doma agudos chillones en sesiones largas.',
+      bands: [['PK', 6000, -3, 2.0], ['HSC', 10000, -2, 0.71]], comp: COMP_OFF },
+    { cat: 'Equipo', name: 'Subwoofer / graves profundos', desc: 'Extiende los sub-graves (cuidado con el volumen).',
+      bands: [['LSC', 60, 5, 0.71], ['PK', 120, -1, 1.2]], comp: COMP_OFF },
+  ],
+};
+
+/*
+ * Perfiles de corrección de audífonos de AutoEq (https://github.com/jaakkopasanen/AutoEq, licencia MIT).
+ * Llevan cada modelo a la curva objetivo Harman. Mediciones de oratory1990, crinacle, Rtings y otros.
+ * n = modelo · s = fuente de la medición · p = preamp recomendado · f = filtros
+ */
+window.AUTOEQ_PROFILES = [
+  {n:"7Hz Salnotes Zero",s:"oratory1990",p:-2.5,f:[["LSC",105,-0.4,0.7],["PK",7148,2.5,1.39],["PK",186,-1.3,1.35],["PK",65,1.7,1.11],["PK",1677,-1.1,1.82],["HSC",10000,-1.3,0.7],["PK",857,0.9,1.64],["PK",9824,0.9,1.98],["PK",3316,-0.6,2.5],["PK",1261,-0.7,3.34]]},
+  {n:"AKG K240 Studio",s:"oratory1990",p:-6.2,f:[["LSC",105,6.3,0.7],["PK",204,-3.2,0.33],["PK",4207,5.2,3.07],["PK",1585,5.4,3.15],["PK",75,2.9,1.48],["HSC",10000,1.8,0.7],["PK",6459,-2.3,2.56],["PK",5428,2.7,3.81],["PK",2689,-1.7,4.63],["PK",9322,-2,2.55]]},
+  {n:"AKG K361",s:"oratory1990",p:-5.8,f:[["LSC",105,-2.3,0.7],["PK",149,-3.3,1.47],["PK",4019,5.9,2.87],["PK",75,1.3,2.02],["PK",42,-1.4,1.64],["HSC",10000,-1.2,0.7],["PK",2560,-1,2.54],["PK",378,0.7,1.79],["PK",7330,2.4,5.94],["PK",1338,-1,2.72]]},
+  {n:"AKG K371",s:"oratory1990",p:-5.6,f:[["LSC",105,-2.7,0.7],["PK",182,-2.3,1.23],["PK",4038,5,3.6],["PK",67,3.1,1.41],["PK",1066,-0.8,2.57],["HSC",10000,2.4,0.7],["PK",5564,-1.6,3.89],["PK",4232,0.9,5.03],["PK",524,0.3,1.66],["PK",2048,0.5,4.67]]},
+  {n:"Anker Soundcore Life Q30",s:"Rtings",p:-5.1,f:[["LSC",105,-4.6,0.7],["PK",1113,5,1.2],["PK",10000,-6,0.89],["PK",123,-5.1,1.29],["PK",4585,5.6,2.76],["HSC",10000,0.5,0.7],["PK",2336,-3,3],["PK",1604,2.6,4.21],["PK",480,-2.1,2.95],["PK",636,2,3.7]]},
+  {n:"Anker Soundcore Space Q45",s:"Rtings",p:-6.6,f:[["LSC",105,-2.3,0.7],["PK",429,7.1,0.8],["PK",998,-4.9,0.26],["PK",3309,11.7,1.67],["PK",5161,-7.2,1.49],["HSC",10000,1.6,0.7],["PK",116,-2.1,1.89],["PK",61,1.7,2.24],["PK",217,1.3,2.19],["PK",5915,-1.7,6]]},
+  {n:"Apple AirPods 4",s:"Rtings",p:-6.4,f:[["LSC",105,11.4,0.7],["PK",4622,6,1.39],["PK",49,-11.7,0.39],["PK",1277,-2.6,0.86],["PK",3036,4.1,2.43],["HSC",10000,-1.9,0.7],["PK",354,-1.4,1.5],["PK",176,1.5,2.04],["PK",618,1,2.35],["PK",106,-0.9,2.47]]},
+  {n:"Apple AirPods Max",s:"oratory1990",p:-4.7,f:[["LSC",105,-3,0.7],["PK",7273,3.6,2.41],["PK",218,-2.9,1.41],["PK",1031,-3.2,0.99],["PK",3185,3.1,0.56],["HSC",10000,-5.5,0.7],["PK",9508,2.7,2.2],["PK",66,0.6,1.65],["PK",4045,2.1,5.82],["PK",4834,-1.8,6]]},
+  {n:"Apple AirPods Pro",s:"crinacle",p:-6,f:[["LSC",105,2.6,0.7],["PK",514,-4.4,0.68],["PK",8903,6,1.66],["PK",183,2,0.77],["PK",4613,3.4,2.46],["HSC",10000,-0.5,0.7],["PK",1517,-1,2.33],["PK",929,1.2,2.75],["PK",44,-0.5,2.16],["PK",618,-0.5,2.86]]},
+  {n:"Audio-Technica ATH-M40x",s:"oratory1990",p:-5.6,f:[["LSC",105,17.6,0.7],["PK",48,-16.9,0.29],["PK",348,6,0.87],["PK",5150,3.3,4.1],["PK",2979,1.8,1.99],["HSC",10000,-6.9,0.7],["PK",1378,-1.4,2.13],["PK",796,0.6,1.67],["PK",6306,1.6,5.1],["PK",2225,0.8,3.7]]},
+  {n:"Audio-Technica ATH-M50x",s:"oratory1990",p:-3.1,f:[["LSC",105,0.6,0.7],["PK",156,-5.2,0.73],["PK",326,5.3,1.59],["PK",7077,2.8,2.22],["PK",3483,2.1,5.82],["HSC",10000,-4.1,0.7],["PK",45,-1.1,1.9],["PK",66,1.4,3.59],["PK",787,-0.5,1.79],["PK",1640,0.9,3.41]]},
+  {n:"Beats Studio Buds",s:"oratory1990",p:-4.3,f:[["LSC",105,-2.2,0.7],["PK",1819,-4.7,0.74],["PK",145,3.3,0.23],["PK",6271,4.8,1.67],["PK",568,-2.4,1.88],["HSC",10000,0.3,0.7],["PK",3619,2.3,4.81],["PK",2771,-1.7,3.92],["PK",68,0.8,1.75],["PK",127,-0.8,1.91]]},
+  {n:"Beats Studio3 Wireless",s:"oratory1990",p:-6.9,f:[["LSC",105,7.7,0.7],["PK",327,-5.9,1.56],["PK",5209,6.7,2.64],["PK",68,-8.1,0.78],["PK",1978,4.3,2.19],["HSC",10000,-2.5,0.7],["PK",3257,-1.9,4.42],["PK",666,1.5,2.52],["PK",6665,1.5,3.92],["PK",428,-1.1,4.35]]},
+  {n:"Beyerdynamic DT 990 Pro",s:"oratory1990",p:-6.7,f:[["LSC",105,10.1,0.7],["PK",541,3.1,0.52],["PK",64,-7.4,0.38],["PK",7731,-4.6,1.06],["PK",640,0.6,2.47],["HSC",10000,-9.8,0.7],["PK",7136,3.1,2.08],["PK",5897,-4.8,5.3],["PK",4193,1.1,1.51],["PK",9436,2.7,3.53]]},
+  {n:"Bose QuietComfort 35 II",s:"crinacle",p:-4.3,f:[["LSC",105,2.4,0.7],["PK",99,-3.4,0.26],["PK",1332,3.2,0.62],["PK",2633,-4.5,3.08],["PK",5938,-5.2,6],["HSC",10000,1.4,0.7],["PK",9646,3.7,0.99],["PK",4334,-2.3,3.66],["PK",7076,2.6,5.94],["PK",6213,-3.9,6]]},
+  {n:"Bose QuietComfort 45",s:"oratory1990",p:-2.2,f:[["LSC",105,-1.4,0.7],["PK",161,-2.2,1.15],["PK",5490,-7.7,2.06],["PK",4242,3.5,0.24],["PK",2328,-5.2,2.15],["HSC",10000,-7,0.7],["PK",8352,2.9,1.93],["PK",390,0.5,2.32],["PK",6508,-1,5.04],["PK",70,-0.1,1.97]]},
+  {n:"Bose QuietComfort Earbuds II",s:"Rtings",p:-4.2,f:[["LSC",105,-3.6,0.7],["PK",4510,-4.2,1.69],["PK",1247,3,1.49],["PK",2336,-3.3,2.57],["PK",455,1.8,1.33],["HSC",10000,4.2,0.7],["PK",76,1.4,0.73],["PK",24,-2,2.9],["PK",33,-0.9,2.19],["PK",186,-1,4.12]]},
+  {n:"Bose QuietComfort Ultra Headphones",s:"Rtings",p:-2.8,f:[["LSC",105,-3,0.7],["PK",5032,2.8,3.69],["PK",156,1.5,1.61],["PK",94,-2.4,2.32],["PK",2373,-2.8,5.58],["HSC",10000,2.7,0.7],["PK",1633,2.6,3.51],["PK",491,-1.1,2.5],["PK",2194,-1,3.76],["PK",36,-0.5,2.83]]},
+  {n:"Corsair HS80 RGB WIRELESS",s:"Rtings",p:-6.3,f:[["LSC",105,7.4,0.7],["PK",135,-6,0.32],["PK",3485,5.5,0.7],["PK",627,3.2,2],["PK",1057,-3,2.44],["HSC",10000,4,0.7],["PK",5744,-4.1,5.9],["PK",4111,1.4,2.19],["PK",2892,-1.6,5.76],["PK",69,-0.5,2.98]]},
+  {n:"Corsair Void Elite",s:"Rtings",p:-6.7,f:[["LSC",105,7.5,0.7],["PK",155,-6.8,0.38],["PK",629,7.7,1.42],["PK",3240,3.9,3.86],["PK",2018,2.5,2.31],["HSC",10000,6.5,0.7],["PK",6226,-4.8,3.27],["PK",41,1.3,3.74],["PK",63,-0.8,2.22],["PK",4681,2.1,5.04]]},
+  {n:"HyperX Cloud Alpha",s:"oratory1990",p:-6.3,f:[["LSC",105,7.1,0.7],["PK",104,-5.9,0.23],["PK",733,4.5,0.92],["PK",4324,6.7,2.87],["PK",6110,-3,3.21],["HSC",10000,-5.6,0.7],["PK",41,-0.4,2],["PK",159,0.5,3.01],["PK",212,-0.5,3.66],["PK",1964,0.5,4.33]]},
+  {n:"HyperX Cloud II",s:"oratory1990",p:-6.4,f:[["LSC",105,4.1,0.7],["PK",170,-7,1.06],["PK",271,3.7,0.58],["PK",3828,5.4,3.6],["PK",57,-4.8,0.58],["HSC",10000,-7,0.7],["PK",8085,-3,3.98],["PK",2378,-1.9,2.78],["PK",3700,1.3,2.71],["PK",1123,1.1,3.29]]},
+  {n:"HyperX Cloud III",s:"Rtings",p:-5.3,f:[["LSC",105,5.3,0.7],["PK",3839,-9.6,0.4],["PK",166,2.9,1.73],["PK",4422,10.1,1.76],["PK",2810,8.5,1.22],["HSC",10000,0.2,0.7],["PK",74,-1.6,2.18],["PK",6436,-3.5,6],["PK",5709,2.7,6],["PK",119,0.9,3.08]]},
+  {n:"HyperX Cloud Stinger",s:"Rtings",p:-6.1,f:[["LSC",105,-1.2,0.7],["PK",358,15,0.7],["PK",232,-10.9,0.49],["PK",3947,-8.6,0.52],["PK",4465,12.9,1.51],["HSC",10000,-4.2,0.7],["PK",1064,1.6,2.42],["PK",704,-1.7,3.19],["PK",2978,-1.4,3.84],["PK",3823,1.4,4.25]]},
+  {n:"JBL Tune 510BT",s:"Rtings",p:-4.6,f:[["LSC",105,7.9,0.7],["PK",53,-12.2,0.69],["PK",1873,3.3,0.3],["PK",6973,-5.3,2.35],["PK",3979,-4.3,1.79],["HSC",10000,-3.7,0.7],["PK",402,-1.2,0.27],["PK",1875,2.3,3.7],["PK",429,4.3,4.17],["PK",153,3,3.92]]},
+  {n:"JBL Tune 520BT",s:"Rtings",p:-6.4,f:[["LSC",105,8,0.7],["PK",62,-8.3,0.79],["PK",3532,-6.8,2.66],["PK",2056,2,2.83],["PK",4892,3.8,0.93],["HSC",10000,3,0.7],["PK",944,-1.5,3.44],["PK",173,0.9,3.12],["PK",48,-1,2.47],["PK",60,1.4,4.62]]},
+  {n:"JBL Tune 760NC",s:"Rtings",p:-3.9,f:[["LSC",105,-4.5,0.7],["PK",1609,4,1.67],["PK",2953,-4.7,4.02],["PK",716,3.3,3.98],["PK",6417,-4.1,4.96],["HSC",10000,-1.5,0.7],["PK",273,-1.5,2.21],["PK",4607,3.2,5.05],["PK",9429,-1,2.03],["PK",73,0.5,2.48]]},
+  {n:"JBL Tune 770NC",s:"Rtings",p:-2.5,f:[["LSC",105,-3.8,0.7],["PK",8989,-4.6,1.76],["PK",1646,2.9,1.03],["PK",111,2.9,1.24],["PK",2845,-2.6,2.14],["HSC",10000,-1.8,0.7],["PK",514,-2.6,2.09],["PK",5044,3,4.22],["PK",806,1.4,2.84],["PK",6424,-2.3,6]]},
+  {n:"Koss KSC75",s:"oratory1990",p:-6.3,f:[["LSC",105,6.2,0.7],["PK",610,2.2,0.63],["PK",2358,-3.4,1.92],["PK",169,-2.3,0.77],["PK",74,2,2.94],["HSC",10000,-3,0.7],["PK",4033,3.3,5.88],["PK",5191,-3.4,5.53],["PK",7220,-1.5,2.25],["PK",4517,0.7,4.34]]},
+  {n:"Koss Porta Pro",s:"oratory1990",p:-7.9,f:[["LSC",105,9.2,0.7],["PK",83,-8.7,0.47],["PK",3336,4.3,4.55],["PK",8898,5.8,2.75],["PK",6711,4.5,4.32],["HSC",10000,4.5,0.7],["PK",4725,-3.8,6],["PK",1892,-1.6,2.53],["PK",658,0.6,1.45],["PK",2756,1.5,4.62]]},
+  {n:"KZ ZSN Pro",s:"crinacle",p:-3.4,f:[["LSC",105,1,0.7],["PK",159,-3.5,0.65],["PK",800,4,0.86],["PK",2280,-3.5,1.3],["PK",3292,4.6,4.16],["HSC",10000,-4,0.7],["PK",4774,-5.1,4.96],["PK",6507,3.7,5.13],["PK",8713,2.8,3.19],["PK",3916,2.3,5.89]]},
+  {n:"Logitech G Pro X",s:"crinacle",p:-6.5,f:[["LSC",105,-0.2,0.7],["PK",144,-8.3,0.63],["PK",8189,4.9,0.35],["PK",61,5.7,2.16],["PK",371,3.9,1.82],["HSC",10000,1.7,0.7],["PK",3467,3.8,3.72],["PK",1520,-3.5,3.41],["PK",2564,-1.9,4.85],["PK",1011,1.1,2.39]]},
+  {n:"Logitech G PRO X 2 LIGHTSPEED",s:"Rtings",p:-5.3,f:[["LSC",105,-2.7,0.7],["PK",87,-4.1,1.17],["PK",4337,5,3.89],["PK",2028,3.6,3.48],["PK",566,-2.5,2.74],["HSC",10000,5.3,0.7],["PK",333,1.6,3.28],["PK",6215,-3.1,6],["PK",3060,-2,6],["PK",983,-1.6,4.41]]},
+  {n:"Logitech G435 LIGHTSPEED",s:"Rtings",p:-7.1,f:[["LSC",105,10.1,0.7],["PK",60,-8.8,0.53],["PK",686,4.4,2.14],["PK",2988,-8.7,2.04],["PK",3994,5.9,1.27],["HSC",10000,-1.2,0.7],["PK",307,-0.6,1.97],["PK",1718,1.2,3.52],["PK",2176,-1.1,6],["PK",161,0.5,2.91]]},
+  {n:"Logitech G733 LIGHTSPEED",s:"Rtings",p:-3.7,f:[["LSC",105,3.9,0.7],["PK",126,-2.2,0.47],["PK",2356,-4.9,1.22],["PK",4107,4.4,2.74],["PK",1198,3.3,0.71],["HSC",10000,0.6,0.7],["PK",6480,2.5,6],["PK",8045,-1.2,4.5],["PK",1328,1.2,4.43],["PK",1023,-1.2,4.53]]},
+  {n:"Marshall Major III",s:"kr0mka",p:-4.9,f:[["LSC",105,4.8,0.7],["PK",3352,-9,1.75],["PK",430,5.2,0.96],["PK",1099,-3.1,1.47],["PK",1946,2.2,2.41],["HSC",10000,-6.4,0.7],["PK",72,-1.8,2.55],["PK",5550,3.2,4.91],["PK",7631,2.7,5.39],["PK",4271,-2.4,6]]},
+  {n:"Moondrop Aria",s:"oratory1990",p:-3.4,f:[["LSC",105,-0.2,0.7],["PK",164,-2.6,0.92],["PK",6460,3.5,2.43],["PK",659,1.4,1.59],["PK",3108,0.5,1.51],["HSC",10000,-5.3,0.7],["PK",8665,2.1,2.79],["PK",1408,-0.5,2.3],["PK",54,0.9,5.32],["PK",31,-0.4,2.21]]},
+  {n:"Moondrop Chu",s:"oratory1990",p:-2.2,f:[["LSC",105,0.8,0.7],["PK",8728,2.3,2.4],["PK",660,1.2,1.92],["PK",165,-1.2,1.08],["PK",69,1.7,1.26],["HSC",10000,-2.5,0.7],["PK",1470,-1.1,1.68],["PK",942,0.7,2.78],["PK",4153,0.6,3.72],["PK",2772,-0.5,3.46]]},
+  {n:"Philips Fidelio X2HR",s:"oratory1990",p:-6.4,f:[["LSC",105,7.8,0.7],["PK",64,-7.1,0.68],["PK",4982,4.2,0.79],["PK",5096,-8.2,2.97],["PK",29,1.2,4.24],["HSC",10000,-1.2,0.7],["PK",1660,-2.7,4.61],["PK",261,-1,5.02],["PK",2026,0.9,4.49],["PK",2996,1.2,6]]},
+  {n:"Philips SHP9500",s:"oratory1990",p:-6.4,f:[["LSC",105,6.5,0.7],["PK",5734,-5.7,2.84],["PK",110,-3,0.81],["PK",2130,3.7,2.76],["PK",412,1,1.39],["HSC",10000,-2.4,0.7],["PK",1113,-0.6,2.07],["PK",7370,2.1,5.98],["PK",4477,-1.7,6],["PK",3566,1.3,6]]},
+  {n:"Razer BlackShark V2",s:"Rtings",p:-5.9,f:[["LSC",105,8.8,0.7],["PK",1186,3.5,0.18],["PK",72,-5.1,0.27],["PK",8531,-4.4,1.38],["PK",2984,-5.8,1.61],["HSC",10000,-2,0.7],["PK",4457,2.8,6],["PK",104,0.7,2.16],["PK",3714,-1.9,6],["PK",62,-0.7,2.34]]},
+  {n:"Razer BlackShark V2 Pro",s:"crinacle",p:-5.4,f:[["LSC",105,1.9,0.7],["PK",153,-7.6,0.72],["PK",625,5.9,0.85],["PK",3612,-4,4.82],["PK",398,2.5,2.18],["HSC",10000,-1.5,0.7],["PK",2525,2.7,3.01],["PK",1373,-1.5,2.52],["PK",1953,1,3.23],["PK",3166,-1.8,5.42]]},
+  {n:"Razer Kraken V3",s:"Rtings",p:-6.4,f:[["LSC",105,1.8,0.7],["PK",157,-7.1,0.8],["PK",4545,5.6,3.45],["PK",41,2.1,0.68],["PK",823,1.6,0.19],["HSC",10000,-0.5,0.7],["PK",1047,-0.9,1.81],["PK",1731,1.5,4.45],["PK",372,1.2,2.79],["PK",237,-0.8,3.04]]},
+  {n:"Razer Kraken X",s:"Rtings",p:-6.5,f:[["LSC",105,5.6,0.7],["PK",254,-11.2,0.27],["PK",4200,12.8,0.44],["PK",7950,-16,0.74],["PK",402,11.4,0.92],["HSC",10000,-3,0.7],["PK",839,-1.1,3.82],["PK",634,0.9,4.22],["PK",8180,1.6,5.8],["PK",4479,1,6]]},
+  {n:"Samsung Galaxy Buds FE",s:"Rtings",p:-3.8,f:[["LSC",105,-6.1,0.7],["PK",575,3.2,1.44],["PK",273,-1.6,1.56],["PK",5988,-4.2,3.44],["PK",3381,1.7,2.73],["HSC",10000,3.8,0.7],["PK",80,1.4,1.92],["PK",1685,-1,2.32],["PK",957,0.4,2.59],["PK",196,-0.5,3.79]]},
+  {n:"Samsung Galaxy Buds Pro",s:"oratory1990",p:-2.9,f:[["LSC",105,0.4,0.7],["PK",1366,2.8,0.97],["PK",171,-2.9,0.65],["PK",783,1.1,2.15],["PK",3330,0.8,3.58],["HSC",10000,-5.5,0.7],["PK",10000,-0.1,4.71],["PK",8082,-0.6,3.41],["PK",5048,-0.5,5.12],["PK",38,-0.1,2.07]]},
+  {n:"Samsung Galaxy Buds2",s:"oratory1990",p:-4.6,f:[["LSC",105,1.7,0.7],["PK",4739,4.8,1.27],["PK",88,-1.9,0.26],["PK",6935,-3.8,4.18],["PK",827,0.9,2.57],["HSC",10000,3.1,0.7],["PK",1484,-1,2.64],["PK",7930,-1.3,5.82],["PK",1026,0.5,4.03],["PK",41,-0.2,1.94]]},
+  {n:"Samsung Galaxy Buds2 Pro",s:"oratory1990",p:-2.3,f:[["LSC",105,-2.3,0.7],["PK",7526,2.2,2.78],["PK",266,-0.8,1.35],["PK",3426,-2.3,3.7],["PK",64,2.2,1.18],["HSC",10000,-3.8,0.7],["PK",8817,1.6,2.28],["PK",2283,1.2,3.75],["PK",4955,-1.2,5.11],["PK",977,1,5.18]]},
+  {n:"Samsung Galaxy Buds3 Pro",s:"Rtings",p:-2.8,f:[["LSC",105,-5.5,0.7],["PK",185,-2.5,0.8],["PK",2105,1.9,1.04],["PK",539,2.2,0.99],["PK",37,-0.9,0.79],["HSC",10000,-0.8,0.7],["PK",5885,-4.5,3.94],["PK",4086,2.6,5.16],["PK",7847,-0.9,1.95],["PK",6672,2.9,5.97]]},
+  {n:"Sennheiser HD 280 Pro",s:"oratory1990",p:-5.8,f:[["LSC",105,-4.2,0.7],["PK",475,-2.1,0.42],["PK",3946,5.9,1.82],["PK",77,4.7,2.17],["PK",41,-3,1.35],["HSC",10000,3,0.7],["PK",126,-3.7,3.71],["PK",178,2.3,3.81],["PK",101,2.7,6],["PK",7834,1.1,3.95]]},
+  {n:"Sennheiser HD 560S",s:"oratory1990",p:-6.6,f:[["LSC",105,9,0.7],["PK",8983,4.4,2.63],["PK",54,-5.4,0.48],["PK",1148,-1.5,2.38],["PK",491,0.6,1.23],["HSC",10000,-3.9,0.7],["PK",7451,2,3.91],["PK",4502,-1.7,6],["PK",1937,0.9,3.93],["PK",5639,-0.9,6]]},
+  {n:"Sennheiser HD 599",s:"oratory1990",p:-6.2,f:[["LSC",105,6.1,0.7],["PK",152,-4.3,0.59],["PK",1751,4.4,1.45],["PK",4485,-1.9,2.72],["PK",40,1,3.06],["HSC",10000,-0.7,0.7],["PK",9629,6,1.71],["PK",5771,-2.8,5.56],["PK",3175,-2,4.7],["PK",3690,0.7,4.38]]},
+  {n:"Sennheiser HD 600",s:"oratory1990",p:-6.3,f:[["LSC",105,6.5,0.7],["PK",125,-2.7,0.55],["PK",8445,3.3,1.61],["PK",522,0.7,1.02],["PK",1298,-1.2,2.14],["HSC",10000,-3.1,0.7],["PK",3158,-1.8,3.67],["PK",2166,0.9,3.32],["PK",6639,2.2,5.82],["PK",5433,-1.2,5.7]]},
+  {n:"Sennheiser HD 650",s:"oratory1990",p:-6.1,f:[["LSC",105,6.4,0.7],["PK",8800,5.1,1.42],["PK",118,-3.1,0.5],["PK",37,0.7,3.96],["PK",3169,-1.7,3.89],["HSC",10000,-2.1,0.7],["PK",1227,-1.2,2.53],["PK",2055,1.2,3.23],["PK",587,0.4,1.19],["PK",5332,-1.1,5.75]]},
+  {n:"Sennheiser Momentum 4 Wireless",s:"oratory1990",p:-6.4,f:[["LSC",105,-7.4,0.7],["PK",195,-3.6,1.22],["PK",2393,6.1,1.81],["PK",1726,1.6,1.71],["PK",2893,-3.2,5.94],["HSC",10000,0.5,0.7],["PK",63,1.7,2.86],["PK",652,1.2,2.25],["PK",952,-1,3.69],["PK",316,-0.9,3.46]]},
+  {n:"Shure SE215",s:"oratory1990",p:-5.7,f:[["LSC",105,0.3,0.7],["PK",174,-4.6,0.68],["PK",811,3.1,1.42],["PK",3430,3.8,4.37],["PK",6943,5.4,2.76],["HSC",10000,3.8,0.7],["PK",5725,8.1,1.13],["PK",5056,-10.9,2.93],["PK",7269,-6.3,3.47],["PK",2278,-2.1,2.94]]},
+  {n:"Shure SRH840",s:"oratory1990",p:-5.8,f:[["LSC",105,6.2,0.7],["PK",107,-8.3,0.8],["PK",279,2.9,0.36],["PK",58,2.4,4.17],["PK",5991,-1.8,2.6],["HSC",10000,-2,0.7],["PK",1946,-0.7,2.63],["PK",39,-0.4,3.26],["PK",261,0.6,3.14],["PK",332,-0.8,4.7]]},
+  {n:"Sony MDR-7506",s:"oratory1990",p:-5.8,f:[["LSC",105,10.3,0.7],["PK",5435,-3.8,0.9],["PK",847,1.9,0.7],["PK",230,3.7,2.08],["PK",48,-9.5,0.52],["HSC",10000,3.8,0.7],["PK",7530,-1.4,3.26],["PK",2916,-1.9,5.57],["PK",3748,2.6,5.91],["PK",4456,-1.6,6]]},
+  {n:"Sony WF-1000XM4",s:"oratory1990",p:-7.5,f:[["LSC",105,-0.6,0.7],["PK",176,-4.2,0.6],["PK",9973,3.7,1.01],["PK",6316,4.4,0.91],["PK",498,-1.4,1.46],["HSC",10000,3.7,0.7],["PK",1732,1.2,2.28],["PK",3942,-0.8,3.1],["PK",978,-0.3,1.49],["PK",38,-0.2,2.02]]},
+  {n:"Sony WF-1000XM5",s:"oratory1990",p:-2.6,f:[["LSC",105,5.4,0.7],["PK",68,-4.8,0.27],["PK",1377,2.6,0.31],["PK",1806,-3.5,1.16],["PK",6875,1.8,3.49],["HSC",10000,2.3,0.7],["PK",3757,0.3,2.56],["PK",5057,-0.7,5.7],["PK",449,0.3,4.15],["PK",677,-0.2,2.75]]},
+  {n:"Sony WH-1000XM3",s:"oratory1990",p:-5.3,f:[["LSC",105,-4.1,0.7],["PK",143,-5.9,1.02],["PK",1411,6.2,1.1],["PK",697,-2.8,0.92],["PK",4315,4.4,1.98],["HSC",10000,1.4,0.7],["PK",9032,-1.5,2],["PK",6657,2.1,6],["PK",5637,-1.2,5.83],["PK",55,0.3,2.24]]},
+  {n:"Sony WH-1000XM4",s:"oratory1990",p:-6.1,f:[["LSC",105,-4.2,0.7],["PK",143,-5.2,1.1],["PK",2289,6.1,1.57],["PK",56,1.2,1.19],["PK",5144,-3.2,6],["HSC",10000,-1,0.7],["PK",407,1.7,3.14],["PK",6715,3,5.99],["PK",1007,1,3.41],["PK",576,-1.2,3.55]]},
+  {n:"Sony WH-1000XM5",s:"oratory1990",p:-6.2,f:[["LSC",105,-3.2,0.7],["PK",2448,6.9,2.46],["PK",173,-5.6,0.96],["PK",3028,-5.4,2.03],["PK",1327,3.3,0.58],["HSC",10000,4.9,0.7],["PK",6110,-2.3,5.81],["PK",875,-1.2,4.07],["PK",1197,1,3.28],["PK",63,0.4,2.13]]},
+  {n:"SteelSeries Arctis 7+",s:"Rtings",p:-5.2,f:[["LSC",105,6.7,0.7],["PK",95,-6.6,0.42],["PK",821,3.8,0.55],["PK",2837,2.5,2.18],["PK",238,-1.9,1.73],["HSC",10000,-4.5,0.7],["PK",5972,-3.7,5.92],["PK",4932,1.9,5.6],["PK",10000,-0.5,4.62],["PK",1337,0.4,3.89]]},
+  {n:"SteelSeries Arctis Nova 7",s:"Rtings",p:-4.9,f:[["LSC",105,-3,0.7],["PK",142,-5.7,0.93],["PK",331,5.8,1.51],["PK",9150,-4.9,0.89],["PK",4496,6.1,2.79],["HSC",10000,4.7,0.7],["PK",9662,-2.3,2.5],["PK",1814,1.2,2.37],["PK",650,-1.3,3.63],["PK",57,1,4.43]]},
+  {n:"SteelSeries Arctis Nova Pro",s:"Rtings",p:-6.7,f:[["LSC",105,-2.2,0.7],["PK",141,-5.7,1.88],["PK",8720,-7,0.34],["PK",4510,11.9,1.52],["PK",359,4.6,1.63],["HSC",10000,6.6,0.7],["PK",64,4,3.3],["PK",9316,-2.5,1.54],["PK",92,-1.5,2.55],["PK",1981,1,5.16]]},
+  {n:"Xiaomi Piston 3",s:"Innerfidelity",p:-6.4,f:[["LSC",105,8,0.7],["PK",66,-9,0.26],["PK",799,3.7,1.03],["PK",6562,8.3,1.12],["PK",4616,-6.2,1.89],["HSC",10000,4.1,0.7],["PK",8160,-1.3,1.33],["PK",2809,-1,4.67],["PK",2069,0.7,3.89],["PK",5876,1,6]]}
+];
