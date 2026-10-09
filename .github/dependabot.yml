@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    # Spring Boot 3 needs Java 17 and the jakarta.* namespace, so it is a planned migration.
+    ignore:
+      - dependency-name: org.springframework.boot:*
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

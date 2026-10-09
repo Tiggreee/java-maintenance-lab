@@ -1,4 +1,4 @@
-package lat.vmdev.maintlab.incident.api;
+package lat.vmdev.maintlab.incident.web.dto;
 
 import javax.validation.constraints.NotNull;
 import lat.vmdev.maintlab.incident.model.IncidentStatus;
