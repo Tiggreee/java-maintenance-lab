@@ -2,9 +2,10 @@ package lat.vmdev.maintlab.incident.api;
 
 import java.util.List;
 import javax.validation.Valid;
-import lat.vmdev.maintlab.incident.service.IncidentService;
 import lat.vmdev.maintlab.incident.model.IncidentTicket;
+import lat.vmdev.maintlab.incident.service.IncidentService;
 import lat.vmdev.maintlab.incident.web.dto.IncidentCreateRequest;
+import lat.vmdev.maintlab.incident.web.dto.IncidentStatusRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;

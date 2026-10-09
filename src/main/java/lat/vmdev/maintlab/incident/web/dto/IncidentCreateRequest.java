@@ -20,7 +20,7 @@ public class IncidentCreateRequest {
     @NotNull
     private IncidentSeverity severity;
 
-    @NotNull
+    /** Optional: when omitted the service applies {@code incidents.default-sla-minutes}. */
     @Min(5)
     @Max(1440)
     private Integer slaMinutes;

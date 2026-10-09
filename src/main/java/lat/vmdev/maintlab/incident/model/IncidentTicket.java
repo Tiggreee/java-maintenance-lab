@@ -64,9 +64,6 @@ public class IncidentTicket {
         if (openedAt == null) {
             openedAt = now;
         }
-        if (slaMinutes == null || slaMinutes.intValue() < 1) {
-            slaMinutes = Integer.valueOf(45);
-        }
         updatedAt = now;
     }
 

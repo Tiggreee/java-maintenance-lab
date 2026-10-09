@@ -22,9 +22,12 @@ GET   /maintlab/api/incidents/{id}
 PATCH /maintlab/api/incidents/{id}/status
 ```
 
-Creating an incident defaults its status to `OPEN` and its SLA to 45 minutes
-when no SLA is provided. Status transitions record acknowledgment and
-resolution timestamps.
+Creating an incident defaults its status to `OPEN` and its SLA to
+`incidents.default-sla-minutes` (45) when no SLA is provided; an explicit SLA
+must be between 5 and 1440 minutes. Status transitions record acknowledgment
+and resolution timestamps. Statuses only move forward
+(`OPEN` -> `ACKNOWLEDGED` -> `RESOLVED`); going back answers `409 Conflict`
+and an unknown id answers `404`.
 
 Example create request:
 
@@ -50,8 +53,9 @@ export PATH="$JAVA_HOME/bin:$PATH"
 ./mvnw clean package
 ```
 
-The full test suite includes the Spring context test and an integration test
-covering incident creation and acknowledgment through the web layer.
+`./mvnw test` runs the Spring context test and the incident API tests
+(creation, SLA defaults, validation, status transitions, not-found and
+ordering) through the web layer. CI runs `./mvnw verify` on JDK 17 and 21.
 
 ## Endpoints for operations
 
