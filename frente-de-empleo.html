@@ -127,6 +127,16 @@ details summary{cursor:pointer;font-weight:600}
 .cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
 .cfg label{display:grid;gap:3px;font-size:12px;color:var(--muted)}
 .cfg input{width:100%}
+/* Foco y sesiones */
+.focus{background:var(--surface);border:1px solid var(--line);border-left:8px solid var(--accent);border-radius:6px;padding:14px 18px;display:grid;gap:4px}
+.focus .k{font-family:var(--f-display);font-size:14px;text-transform:uppercase;letter-spacing:.14em;color:var(--accent);font-weight:700}
+.focus .t{font-family:var(--f-display);font-size:30px;font-weight:600;line-height:1.1;overflow-wrap:anywhere;text-wrap:balance}
+.focus .d{color:var(--muted);overflow-wrap:anywhere}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px}
+.sh{font-family:var(--f-display);font-size:16px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:10px 0 6px;display:flex;gap:8px;align-items:baseline}
+.sh b{color:var(--fg)}
+.sd{font-size:13px;overflow-wrap:anywhere}
+.sess.need{border-left:4px solid var(--crit)} .sess.work{border-left:4px solid var(--ok)} .sess.stale{border-left:4px solid var(--warn)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:6px;max-width:90vw;z-index:9}
 @media (max-width:520px){.banner .msg{font-size:25px}.clock{font-size:38px}.hd h1{font-size:28px}}
 </style>
@@ -143,6 +153,8 @@ details summary{cursor:pointer;font-weight:600}
     <span class="msg" id="bMsg">Leyendo tu día.</span>
     <span class="sub" id="bSub"></span>
   </section>
+
+  <section class="focus" id="focus" aria-live="polite"></section>
 
   <section class="stats" id="stats"></section>
 
@@ -172,6 +184,16 @@ details summary{cursor:pointer;font-weight:600}
         <span class="muted" id="coachNote"></span>
       </div>
     </div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Sesiones</h2><span class="muted">Todas tus sesiones de Claude, cloud y locales. Se actualiza cada minuto con la página abierta.</span></header>
+    <div class="row">
+      <button class="btn pri" data-act="sref">Actualizar</button>
+      <button class="btn" data-act="sarcht">Ver archivadas</button>
+      <span class="muted" id="sessNote"></span>
+    </div>
+    <div id="sess"></div>
   </section>
 
   <section class="panel">
@@ -257,6 +279,7 @@ function dayStr(t){var d=new Date(t==null?Date.now():t);return d.getFullYear()+'
 function sum(a){return a.reduce(function(x,y){return x+y},0)}
 
 var S = {db:null, sample:null, canWrite:true, tasks:[], leads:[], log:[], timer:{running:false},
+  mcp:null, mcpOn:false, sessions:null, sessErr:'', sessAt:0, showArch:false, confirmArch:'',
   cfg:{dailyTargetMin:240, applyTarget:3, startHour:9, endHour:21, keywords:'desarrollador web remoto'}};
 var STATUS = [['nuevo','Nuevo'],['aplicado','Aplicado'],['respuesta','Respondió'],['entrevista','Entrevista'],['descartado','Descartado']];
 var statusLabel = function(k){var f=STATUS.filter(function(s){return s[0]===k})[0];return f?f[1]:k};
@@ -412,10 +435,11 @@ function paintCfg(){
   var c=S.cfg,set=function(id,v){var e=$(id);if(document.activeElement!==e)e.value=v};
   set('#cTarget',c.dailyTargetMin);set('#cApply',c.applyTarget);set('#cStart',c.startHour);set('#cEnd',c.endHour);set('#kw',c.keywords);
 }
-function paintAll(){paintTop();paintClock();paintTaskSelect();paintTasks();paintLinks();paintLeads();paintChart();paintWaste();paintCfg();applyLock()}
+function paintAll(){paintTop();paintFocus();paintClock();paintTaskSelect();paintSessions();paintTasks();paintLinks();paintLeads();paintChart();paintWaste();paintCfg();applyLock()}
 function applyLock(){
   document.querySelectorAll('button[data-act],form button,form input,form select,.cfg input').forEach(function(e){
     if(e.id==='coachBtn'||e.id==='coachStop')return;
+    if(/^(sref|sarcht|sarch|sarchok)$/.test(e.dataset.act||''))return;
     if(!S.canWrite)e.disabled=true;
   });
 }
@@ -445,6 +469,11 @@ document.addEventListener('click',function(ev){
   var b=ev.target.closest('[data-act]'); if(!b)return;
   var act=b.dataset.act, id=b.dataset.id;
   if(act==='coach'){return coach()} if(act==='coachstop'){return coachCtl&&coachCtl.abort()}
+  if(act==='sref')return refreshSessions(true);
+  if(act==='sarcht'){S.showArch=!S.showArch;b.textContent=S.showArch?'Ocultar archivadas':'Ver archivadas';return paintSessions()}
+  if(act==='sarch'){S.confirmArch=S.confirmArch===id?'':id;return paintSessions()}
+  if(act==='sarchok')return archiveSession(id);
+  if(act==='stask')return sessToTask(id);
   if(!ensure())return;
   if(act==='timer')return toggleTimer();
   if(act==='manual'){var m=Math.round(+$('#mMin').value);if(!(m>=1))return toast('Pon minutos válidos.');var n=Date.now();return run(col('log').add({kind:'work',minutes:m,note:'Registro manual',ts:n,day:dayStr(n)}),'Sumados '+m+' min')}
@@ -501,6 +530,125 @@ async function coach(){
   }finally{btn.disabled=false;stop.hidden=true;coachCtl=null}
 }
 
+/* ---------- Sesiones de Claude ---------- */
+var MCP_SERVER='Claude Code Remote';
+var ORIGIN={desktop_app:'Escritorio',claude_code_vscode:'VS Code',claude_code_cli:'Terminal',android:'Celular',ios:'Celular',web:'Web'};
+function findSessions(x,depth){
+  if(typeof x==='string'){var a=x.indexOf('{'),z=x.lastIndexOf('}');if(a>=0&&z>a){try{return findSessions(JSON.parse(x.slice(a,z+1)),0)}catch(e){}}return null}
+  if(Array.isArray(x)){
+    if(x.length&&x.every(function(o){return o&&typeof o==='object'&&typeof o.id==='string'&&/^session_/.test(o.id)}))return x;
+    for(var i=0;i<x.length;i++){var r=findSessions(x[i],(depth||0)+1);if(r)return r}
+    return null;
+  }
+  if(x&&typeof x==='object'&&(depth||0)<6){for(var k in x){var r2=findSessions(x[k],(depth||0)+1);if(r2)return r2}}
+  return null;
+}
+function ago(iso){var t=Date.parse(iso);if(!t)return '';var m=Math.round((Date.now()-t)/60000);if(m<1)return 'ahora';if(m<60)return 'hace '+m+' min';var h=Math.round(m/60);if(h<48)return 'hace '+h+' h';return 'hace '+Math.round(h/24)+' d'}
+function modelName(m){var r=/claude-(\w+?)-(\d+)(?:-(\d+))?$/.exec(m||'');return r?r[1].charAt(0).toUpperCase()+r[1].slice(1)+' '+r[2]+(r[3]?'.'+r[3]:''):(m||'')}
+function classify(s){
+  var ctx=s.session_context||{}, em=s.external_metadata||{}, ps=s.post_turn_summary||em.post_turn_summary||{}, st=s.session_status||'', bk=s.status_bucket||'';
+  var upd=Date.parse(s.updated_at||'')||0, age=(Date.now()-upd)/DAY;
+  var o={id:s.id,title:s.title||'(sin título)',ps:ps,age:age,updated:s.updated_at,cost:em.usage&&em.usage.cost_usd,ctx:em.context_usage,
+    model:modelName(s.configured_model||ctx.model),origin:ORIGIN[s.origin]||s.origin||'',cloud:s.environment_kind==='anthropic_cloud',
+    disc:s.connection_status==='disconnected',repo:''};
+  var src=(ctx.sources||[])[0]; if(src&&src.git_repository&&src.git_repository.url)o.repo=src.git_repository.url.replace(/^https?:\/\/github\.com\//,'');
+  if(/ARCHIVED/.test(st))o.k='arch';
+  else if(/BLOCKED|REVIEW_READY/.test(bk)||ps.status_category==='need_input')o.k='need';
+  else if(/RUNNING/.test(st)||(/WORKING/.test(bk)&&!(o.disc&&age>1)))o.k='work';
+  else if(/WORKING/.test(bk))o.k='stale';
+  else o.k='idle';
+  return o;
+}
+var SESS_ERR={
+  server_not_connected:'Falta el conector "Claude Code Remote". Agrégalo en claude.ai, Settings, Connectors.',
+  needs_reauth:'Reconecta "Claude Code Remote" en claude.ai, Settings, Connectors.',
+  not_in_manifest:'Esta página no tiene permiso para leer tus sesiones. Cámbialo en el menú de permisos del artefacto.',
+  approval_required:'Falta tu aprobación. Pulsa Actualizar y acepta.',
+  selection_required:'Tienes más de un conector con ese nombre. Elige uno en el aviso de la página.'
+};
+function sessError(e){S.sessErr=SESS_ERR[e&&e.code]||('No se pudieron leer las sesiones ('+((e&&e.code)||'error')+'). '+((e&&e.message)||''));paintSessions()}
+function applySess(r){
+  var arr=findSessions(r&&r.payload!==undefined?r.payload:r,0);
+  if(!arr){S.sessErr='La respuesta de sesiones llegó en un formato que no reconozco.';paintSessions();return}
+  S.sessions=arr.map(classify);S.sessErr='';S.sessAt=(r&&r.cache&&r.cache.storedAt)||Date.now();
+  paintSessions();paintFocus();
+}
+async function refreshSessions(force){
+  if(!S.mcp)return toast('Esta vista no puede leer sesiones.');
+  $('#sessNote').textContent='Actualizando...';
+  try{applySess(await S.mcp.callTool(MCP_SERVER,'list_sessions',{limit:50},force?{cache:{refresh:true}}:undefined))}catch(e){sessError(e)}
+}
+async function archiveSession(id){
+  S.confirmArch='';
+  if(!S.mcp)return;
+  try{await S.mcp.callTool(MCP_SERVER,'archive_session',{session_id:id});toast('Sesión archivada');await refreshSessions(true)}
+  catch(e){toast('No se archivó: '+((e&&e.code)||'error'));paintSessions()}
+}
+function sessToTask(id){
+  if(!ensure())return;
+  var s=(S.sessions||[]).filter(function(x){return x.id===id})[0]; if(!s)return;
+  if(S.tasks.some(function(t){return t.sessionId===id&&t.status!=='done'}))return toast('Esa sesión ya está en tus tareas.');
+  run(col('tasks').add({title:'Responder sesión: '+s.title,area:'sesiones',status:'todo',createdAt:Date.now(),sessionId:id,note:s.ps.needs_action||s.ps.status_detail||''}),'Agregada a tus tareas');
+}
+function paintSessions(){
+  var box=$('#sess'), note=$('#sessNote');
+  note.textContent=S.sessErr||(S.sessAt?'Actualizado '+ago(new Date(S.sessAt).toISOString()):'');
+  note.style.color=S.sessErr?'var(--crit)':'';
+  if(!S.sessions){box.innerHTML='<div class="empty">'+(S.mcpOn?'Leyendo tus sesiones...':(S.sessErr||'Leyendo tus sesiones...'))+'</div>';return}
+  var groups=[['need','Te necesitan'],['work','Trabajando'],['stale','Colgadas, sin señal'],['idle','Abiertas sin actividad']];
+  if(S.showArch)groups.push(['arch','Archivadas']);
+  var open=S.sessions.filter(function(s){return s.k!=='arch'}), cost=0;
+  S.sessions.forEach(function(s){if(s.cost)cost+=+s.cost});
+  var html='<div class="muted" style="margin-bottom:4px">'+open.length+' abiertas de '+S.sessions.length+' leídas. Gasto estimado en las que lo reportan: <span class="mono">$'+cost.toFixed(2)+'</span> (no es tu saldo ni tu factura).</div>';
+  groups.forEach(function(g){
+    var list=S.sessions.filter(function(s){return s.k===g[0]}).sort(function(a,b){return g[0]==='need'?Date.parse(a.updated)-Date.parse(b.updated):Date.parse(b.updated)-Date.parse(a.updated)});
+    if(g[0]==='arch')list=list.slice(0,10);
+    if(!list.length)return;
+    html+='<div class="sh"><b>'+g[1]+'</b><span class="mono">'+list.length+'</span></div><div class="sgrid">'+list.map(function(s){
+      var detail=(g[0]==='need'?(s.ps.needs_action||s.ps.status_detail):(s.ps.status_detail||s.ps.recent_action))||'';
+      if(detail.length>220)detail=detail.slice(0,220)+'...';
+      var ctxp=s.ctx&&s.ctx.max_tokens?Math.round(s.ctx.used_tokens/s.ctx.max_tokens*100):null;
+      var btns='';
+      if(s.k==='need')btns+='<button class="btn sm pri" data-act="stask" data-id="'+esc(s.id)+'">Meter a mi lista</button>';
+      if(s.k==='idle'||s.k==='stale'||s.k==='need')btns+=S.confirmArch===s.id?'<button class="btn sm danger" data-act="sarchok" data-id="'+esc(s.id)+'">Confirmar archivar</button><button class="btn sm" data-act="sarch" data-id="'+esc(s.id)+'">Cancelar</button>':'<button class="btn sm" data-act="sarch" data-id="'+esc(s.id)+'">Archivar</button>';
+      return '<div class="card sess '+s.k+'"><span class="t">'+esc(s.title)+'</span>'
+        +'<div class="meta"><span class="chip">'+esc(s.origin)+'</span><span class="chip">'+(s.cloud?'cloud':'local')+'</span><span class="chip">'+esc(s.model)+'</span></div>'
+        +'<div class="meta">'+(s.repo?esc(s.repo)+' · ':'')+ago(s.updated)+(s.cost?' · <span class="mono">$'+(+s.cost).toFixed(2)+'</span>':'')+(ctxp!==null?' · contexto '+ctxp+'%':'')+'</div>'
+        +(detail?'<span class="sd">'+esc(detail)+'</span>':'')
+        +(btns?'<div class="row">'+btns+'</div>':'')+'</div>';
+    }).join('')+'</div>';
+  });
+  box.innerHTML=html;
+}
+function paintFocus(){
+  var el=$('#focus'), item=null, now=Date.now();
+  var need=(S.sessions||[]).filter(function(s){return s.k==='need'}).sort(function(a,b){return Date.parse(a.updated)-Date.parse(b.updated)});
+  var cold=metrics().cold.slice().sort(function(a,b){return a.createdAt-b.createdAt});
+  if(S.timer&&S.timer.running){
+    var tk=S.tasks.filter(function(t){return t.id===S.timer.taskId})[0];
+    item={k:'En bloque ahora',t:tk?tk.title:'Trabajo libre',d:'El timer está corriendo. Una sola cosa hasta que lo detengas.'};
+  }else if(need.length){
+    item={k:'Una sesión te espera',t:need[0].title,d:(need[0].ps.needs_action||need[0].ps.status_detail||'Revísala y respóndele.')+' ('+ago(need[0].updated)+')'};
+  }else if(cold.length){
+    item={k:'Tarea fría',t:cold[0].title,d:'Lleva '+Math.floor((now-cold[0].createdAt)/DAY)+' días sin empezar. Pulsa Empezar y arranca el timer.'};
+  }else{
+    var doing=S.tasks.filter(function(t){return t.status==='doing'})[0], todo=S.tasks.filter(function(t){return t.status==='todo'}).sort(function(a,b){return a.createdAt-b.createdAt})[0];
+    var pick=doing||todo;
+    item=pick?{k:doing?'Sigue con esto':'Lo siguiente',t:pick.title,d:'Inicia el timer sobre esta tarea.'}:{k:'Sin pendientes',t:'Agrega la siguiente tarea concreta.',d:'Una tarea con verbo y resultado.'};
+  }
+  var extra=[];
+  if(need.length>1)extra.push((need.length-1)+' sesiones más te esperan');
+  if(cold.length>(item.k==='Tarea fría'?1:0))extra.push((cold.length-(item.k==='Tarea fría'?1:0))+' tareas frías más');
+  el.innerHTML='<span class="k">Foco ahora</span><span class="k" style="color:var(--muted);letter-spacing:.08em">'+esc(item.k)+'</span><span class="t">'+esc(item.t)+'</span><span class="d">'+esc(item.d)+(extra.length?' Además: '+extra.join(', ')+'.':'')+'</span>';
+}
+async function initSessions(){
+  var m=await use('mcp');
+  if(!m){S.sessErr='Esta vista no puede leer tus sesiones porque no tiene acceso a conectores.';paintSessions();return}
+  S.mcp=m;S.mcpOn=true;paintSessions();
+  try{m.watchTool(MCP_SERVER,'list_sessions',{limit:50},function(ev){if(ev.type==='data')applySess(ev.result);else sessError(ev.error)},{refetchInterval:60000})}
+  catch(e){sessError(e)}
+}
+
 /* ---------- Arranque ---------- */
 $('#date').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
 paintAll();
@@ -509,6 +657,7 @@ async function use(n){try{return (window.claude&&await window.claude.use(n))||nu
   var res=await Promise.all([use('db'),use('sample'),use('user')]);
   S.db=res[0]; S.sample=res[1]; var user=res[2];
   if(!S.sample){$('#coachBtn').disabled=true;$('#coachNote').textContent='Claude no está disponible en esta vista.'}
+  initSessions();
   if(!S.db){S.canWrite=false;notice('Esta vista no tiene base de datos. Ábrela desde claude.ai con tu sesión para guardar tus datos.');paintAll();return}
   try{if(user&&user.can){var w=await user.can('data.write');if(w===false){S.canWrite=false;notice('Esta vista es de solo lectura. Para registrar necesitas permiso de colaborador.')}}}catch(e){}
   var onErr=function(e){notice('No se pudo leer la base de datos ('+((e&&e.code)||'error')+').')};
@@ -519,6 +668,6 @@ async function use(n){try{return (window.claude&&await window.claude.use(n))||nu
   S.db.doc('state/config').onSnapshot(function(s){if(s.exists)S.cfg=Object.assign({},S.cfg,s.data());paintAll()},onErr);
   S.db.doc('state/timer').onSnapshot(function(s){S.timer=s.exists?s.data():{running:false};paintAll()},onErr);
 })();
-setInterval(function(){paintTop();paintClock();paintChart()},1000);
+setInterval(function(){paintTop();paintFocus();paintClock();paintChart()},1000);
 })();
 </script>
