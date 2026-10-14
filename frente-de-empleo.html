@@ -1,0 +1,524 @@
+<title>Frente de Empleo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: consola de una sola columna ancha. Primero el nivel de presión, luego cifras, luego trabajo (tareas y vacantes), luego diagnóstico (semana y fugas). */
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --surface2:#E8ECF2; --line:#D3D9E3;
+  --fg:#12161F; --muted:#586174;
+  --accent:#2F4BD0; --accent-fg:#FFFFFF;
+  --ok:#0F7A58; --warn:#9A5B00; --crit:#C42027;
+  --f-display:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1117; --surface:#161A22; --surface2:#1E2430; --line:#2B3342;
+    --fg:#E9ECF2; --muted:#98A2B4;
+    --accent:#8AA0FF; --accent-fg:#0E1117;
+    --ok:#3FD1A1; --warn:#F3B646; --crit:#FF6F6F;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1117; --surface:#161A22; --surface2:#1E2430; --line:#2B3342;
+  --fg:#E9ECF2; --muted:#98A2B4;
+  --accent:#8AA0FF; --accent-fg:#0E1117;
+  --ok:#3FD1A1; --warn:#F3B646; --crit:#FF6F6F;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;
+  padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;margin:0;letter-spacing:.01em;text-wrap:balance}
+h2{font-size:22px;text-transform:uppercase;letter-spacing:.06em}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.hd{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px}
+.hd h1{font-size:34px;text-transform:uppercase;letter-spacing:.05em}
+.hd .date{color:var(--muted);text-transform:capitalize}
+.notice{padding:10px 12px;border:1px solid var(--warn);border-radius:6px;color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,var(--surface))}
+
+/* Banner de presión */
+.banner{border:1px solid var(--line);border-left-width:8px;border-radius:6px;padding:16px 18px;background:var(--surface);display:grid;gap:6px}
+.banner .lvl{font-family:var(--f-display);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.14em}
+.banner .msg{font-family:var(--f-display);font-size:30px;font-weight:600;line-height:1.1;text-wrap:balance}
+.banner .sub{color:var(--muted)}
+.banner[data-level="ok"]{border-left-color:var(--ok)} .banner[data-level="ok"] .lvl{color:var(--ok)}
+.banner[data-level="done"]{border-left-color:var(--ok);background:color-mix(in srgb,var(--ok) 9%,var(--surface))} .banner[data-level="done"] .lvl{color:var(--ok)}
+.banner[data-level="warn"]{border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 9%,var(--surface))} .banner[data-level="warn"] .lvl{color:var(--warn)}
+.banner[data-level="crit"]{border-left-color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,var(--surface))} .banner[data-level="crit"] .lvl{color:var(--crit)}
+.banner[data-level="idle"]{border-left-color:var(--line)}
+
+/* Cifras */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:grid;gap:4px;min-width:0}
+.stat .k{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.stat .v{font-family:var(--f-display);font-size:34px;font-weight:700;line-height:1}
+.stat .v small{font-size:18px;color:var(--muted);font-weight:600}
+.bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent)}
+.stat.bad .v{color:var(--crit)} .stat.good .v{color:var(--ok)}
+
+/* Paneles */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px;min-width:0}
+.panel>header{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;justify-content:space-between}
+.cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row>*{min-width:0}
+input[type=text],input[type=number],input[type=url],select{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:7px 9px;min-height:36px}
+input[type=text],input[type=url]{flex:1 1 180px}
+input[type=number]{width:84px}
+.btn{background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:7px 12px;min-height:36px;font-weight:500}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
+.btn.sm{padding:3px 9px;min-height:28px;font-size:13px}
+.btn.danger:hover{border-color:var(--crit);color:var(--crit)}
+.btn:disabled,input:disabled,select:disabled{opacity:.5;cursor:not-allowed}
+
+/* Timer */
+.timer{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.clock{font-family:var(--f-mono);font-size:44px;font-weight:500;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.clock.on{color:var(--accent)}
+
+/* Tareas */
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px}
+.lane{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;display:grid;gap:8px;align-content:start;min-width:0}
+.lane h3{font-size:15px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:flex;justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:8px 9px;display:grid;gap:6px;min-width:0}
+.card .t{overflow-wrap:anywhere}
+.card .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+.chip{font-size:11px;text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--line);border-radius:3px;padding:1px 6px;color:var(--muted)}
+.chip.warn{color:var(--warn);border-color:var(--warn)} .chip.crit{color:var(--crit);border-color:var(--crit)} .chip.ok{color:var(--ok);border-color:var(--ok)}
+.empty{color:var(--muted);font-size:13px;padding:6px 2px}
+
+/* Vacantes */
+.leads{display:grid;gap:6px}
+.lead{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;border:1px solid var(--line);border-radius:5px;padding:8px 10px;background:var(--bg)}
+.lead .t{overflow-wrap:anywhere;font-weight:500}
+.lead .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.lead .meta{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.lead a{color:var(--accent)}
+.links{display:flex;flex-wrap:wrap;gap:6px}
+.links a{border:1px solid var(--line);border-radius:5px;padding:5px 10px;text-decoration:none;color:var(--fg);background:var(--surface2);font-weight:500}
+.links a:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Gráfica y fugas */
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart text{fill:var(--muted);font-family:var(--f-mono);font-size:11px}
+.chart .bw{fill:var(--accent)} .chart .bx{fill:var(--crit)}
+.chart .tl{stroke:var(--muted);stroke-dasharray:4 4;stroke-width:1}
+.chart .base{stroke:var(--line);stroke-width:1}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.waste{display:grid;gap:5px}
+.waste .w{display:flex;gap:10px;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--line);padding:4px 0;font-size:13px}
+.waste .w span:first-child{overflow-wrap:anywhere}
+
+/* Coach */
+.coach{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px;min-height:60px;font-size:15px}
+details summary{cursor:pointer;font-weight:600}
+.cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+.cfg label{display:grid;gap:3px;font-size:12px;color:var(--muted)}
+.cfg input{width:100%}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:6px;max-width:90vw;z-index:9}
+@media (max-width:520px){.banner .msg{font-size:25px}.clock{font-size:38px}.hd h1{font-size:28px}}
+</style>
+
+<div class="wrap">
+  <div class="hd">
+    <h1>Frente de Empleo</h1>
+    <span class="date" id="date"></span>
+  </div>
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="banner" id="banner" data-level="idle" aria-live="polite">
+    <span class="lvl" id="bLvl">Cargando</span>
+    <span class="msg" id="bMsg">Leyendo tu día.</span>
+    <span class="sub" id="bSub"></span>
+  </section>
+
+  <section class="stats" id="stats"></section>
+
+  <section class="cols2">
+    <div class="panel">
+      <header><h2>Bloque de trabajo</h2><span class="muted">Un timer corre, se registra solo al detener</span></header>
+      <div class="timer">
+        <div class="clock" id="clock">00:00</div>
+        <div class="row" style="flex:1 1 260px">
+          <select id="tSel" aria-label="Tarea del bloque" style="flex:1 1 180px"></select>
+          <button class="btn pri" id="tBtn" data-act="timer">Iniciar</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="muted">Sin timer, sumar a mano:</span>
+        <input type="number" id="mMin" min="5" max="600" value="25" aria-label="Minutos">
+        <button class="btn" data-act="manual">Sumar minutos</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <header><h2>Coach</h2><span class="muted">Claude lee tus cifras reales y te contesta</span></header>
+      <div class="coach" id="coach">Pulsa el botón para que Claude revise cómo vas hoy y esta semana.</div>
+      <div class="row">
+        <button class="btn pri" id="coachBtn" data-act="coach">Dame la verdad</button>
+        <button class="btn" id="coachStop" data-act="coachstop" hidden>Detener</button>
+        <span class="muted" id="coachNote"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Tareas</h2><span class="muted">Lo que lleva días sin empezar se marca en rojo</span></header>
+    <form class="row" id="fTask" autocomplete="off">
+      <input type="text" id="taskTitle" placeholder="Nueva tarea concreta (verbo + resultado)" aria-label="Nueva tarea" maxlength="140">
+      <select id="taskArea" aria-label="Área">
+        <option value="empleo">Empleo</option><option value="portafolio">Portafolio</option>
+        <option value="estudio">Estudio</option><option value="cliente">Cliente</option>
+        <option value="admin">Administrativo</option>
+      </select>
+      <button class="btn pri" type="submit">Agregar</button>
+    </form>
+    <div class="board" id="board"></div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Vacantes y trabajos pequeños</h2><span class="muted" id="leadSum"></span></header>
+    <div class="row">
+      <label class="muted" for="kw">Buscar:</label>
+      <input type="text" id="kw" placeholder="ej. desarrollador web remoto" maxlength="80">
+    </div>
+    <div class="links" id="links"></div>
+    <form class="row" id="fLead" autocomplete="off">
+      <input type="text" id="leadTitle" placeholder="Empresa y puesto, o trabajo pequeño" aria-label="Vacante" maxlength="140">
+      <select id="leadSrc" aria-label="Fuente">
+        <option>LinkedIn</option><option>OCC</option><option>Indeed</option><option>Computrabajo</option>
+        <option>Workana</option><option>Upwork</option><option>Referido</option><option>Otro</option>
+      </select>
+      <input type="url" id="leadUrl" placeholder="Enlace (opcional)" aria-label="Enlace">
+      <button class="btn pri" type="submit">Guardar</button>
+    </form>
+    <div class="leads" id="leads"></div>
+  </section>
+
+  <section class="cols2">
+    <div class="panel">
+      <header><h2>Últimos 7 días</h2>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Trabajo</span><span><i style="background:var(--crit)"></i>Fugas</span></div>
+      </header>
+      <svg class="chart" id="chart" viewBox="0 0 560 220" role="img" aria-label="Minutos de trabajo y fugas por día"></svg>
+    </div>
+    <div class="panel">
+      <header><h2>En qué me hice pendejo</h2><span class="muted">Anótalo en el momento, sin adornos</span></header>
+      <form class="row" id="fWaste" autocomplete="off">
+        <select id="wCat" aria-label="Qué fue">
+          <option>Redes y videos</option><option>Probando herramientas nuevas</option>
+          <option>Chat con IA sin avanzar</option><option>Cambiando de app o sesión</option>
+          <option>Dándole vueltas sin empezar</option><option>Otro</option>
+        </select>
+        <input type="number" id="wMin" min="1" max="600" value="30" aria-label="Minutos perdidos">
+        <input type="text" id="wNote" placeholder="Detalle (opcional)" aria-label="Detalle" maxlength="100">
+        <button class="btn danger" type="submit">Registrar fuga</button>
+      </form>
+      <div class="waste" id="waste"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Ajustes</h2></header>
+    <details>
+      <summary>Metas y horario del día</summary>
+      <div class="cfg">
+        <label>Meta de trabajo (min/día)<input type="number" id="cTarget" min="30" max="720"></label>
+        <label>Aplicaciones por día<input type="number" id="cApply" min="0" max="30"></label>
+        <label>Empieza el día (hora)<input type="number" id="cStart" min="0" max="23"></label>
+        <label>Termina el día (hora)<input type="number" id="cEnd" min="1" max="24"></label>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="btn pri" data-act="savecfg">Guardar ajustes</button></div>
+    </details>
+    <p class="muted" style="margin:0">Bloqueo de PC y alertas fuera de esta página: no están activos. Esta página no puede cerrar tu pantalla. Para eso se necesita un programa pequeño en tu computadora, y se arma aparte.</p>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+'use strict';
+var $ = function(s){return document.querySelector(s)};
+var esc = function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var DAY = 864e5;
+function dayStr(t){var d=new Date(t==null?Date.now():t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function sum(a){return a.reduce(function(x,y){return x+y},0)}
+
+var S = {db:null, sample:null, canWrite:true, tasks:[], leads:[], log:[], timer:{running:false},
+  cfg:{dailyTargetMin:240, applyTarget:3, startHour:9, endHour:21, keywords:'desarrollador web remoto'}};
+var STATUS = [['nuevo','Nuevo'],['aplicado','Aplicado'],['respuesta','Respondió'],['entrevista','Entrevista'],['descartado','Descartado']];
+var statusLabel = function(k){var f=STATUS.filter(function(s){return s[0]===k})[0];return f?f[1]:k};
+
+function toast(msg){var t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){t.hidden=true},3200)}
+function notice(msg){var n=$('#notice');n.textContent=msg;n.hidden=!msg}
+async function run(p, ok){try{await p;if(ok)toast(ok)}catch(e){toast('No se guardó: '+((e&&(e.message||e.code))||'error'))}}
+
+/* ---------- Métricas ---------- */
+function elapsedMin(){return S.timer&&S.timer.running&&S.timer.startedAt?Math.max(0,(Date.now()-S.timer.startedAt)/60000):0}
+function metrics(){
+  var c=S.cfg, today=dayStr(), now=new Date(), h=now.getHours()+now.getMinutes()/60;
+  var workLogged=sum(S.log.filter(function(l){return l.kind==='work'&&l.day===today}).map(function(l){return +l.minutes||0}));
+  var work=Math.round(workLogged+elapsedMin());
+  var waste=sum(S.log.filter(function(l){return l.kind==='waste'&&l.day===today}).map(function(l){return +l.minutes||0}));
+  var applied=S.leads.filter(function(l){return l.appliedAt&&dayStr(l.appliedAt)===today}).length;
+  var span=Math.max(1,c.endHour-c.startHour);
+  var frac=Math.min(1,Math.max(0,(h-c.startHour)/span));
+  var expected=Math.round(c.dailyTargetMin*frac);
+  var deficit=expected-work;
+  var cold=S.tasks.filter(function(t){return t.status==='todo'&&Date.now()-t.createdAt>3*DAY});
+  var level;
+  if(work>=c.dailyTargetMin) level='done';
+  else if(frac===0) level='idle';
+  else if(deficit<=20) level='ok';
+  else if(deficit<=90) level='warn';
+  else level='crit';
+  var by={};S.log.forEach(function(l){if(l.kind==='work')by[l.day]=(by[l.day]||0)+(+l.minutes||0)});
+  by[today]=(by[today]||0)+Math.round(elapsedMin());
+  var streak=0;
+  for(var i=0;i<15;i++){
+    var d=dayStr(Date.now()-i*DAY), ok=(by[d]||0)>=c.dailyTargetMin*0.5;
+    if(ok)streak++; else if(i>0)break;
+  }
+  return {work:work,waste:waste,applied:applied,expected:expected,deficit:deficit,cold:cold,level:level,streak:streak,frac:frac};
+}
+
+/* ---------- Banner y cifras ---------- */
+var LVL={done:'Meta cumplida',ok:'Al corriente',warn:'Vas atrasado',crit:'Alerta roja',idle:'Antes de arrancar'};
+function paintTop(){
+  var m=metrics(), c=S.cfg;
+  var msg, sub;
+  if(m.level==='done'){msg='Meta del día cumplida. Una aplicación más y cierras con ventaja.';}
+  else if(m.level==='idle'){msg='El día arranca a las '+c.startHour+':00. Ten listo el primer bloque.';}
+  else if(m.level==='ok'){msg='Vas al corriente. No aflojes ahora.';}
+  else if(m.level==='warn'){msg='Llevas '+m.deficit+' min de atraso. Arranca 25 minutos ahorita.';}
+  else {msg='Atraso de '+m.deficit+' min'+(m.waste?' y '+m.waste+' min en fugas':'')+'. Cierra todo lo demás y pulsa Iniciar.';}
+  sub='Hoy llevas '+m.work+' de '+c.dailyTargetMin+' min. A esta hora tocaban '+m.expected+'.'
+    +(m.cold.length?' Tareas frías: '+m.cold.length+'.':'')
+    +(m.applied<c.applyTarget&&m.level!=='idle'?' Aplicaciones: '+m.applied+' de '+c.applyTarget+'.':'');
+  var b=$('#banner'); b.dataset.level=m.level;
+  $('#bLvl').textContent=LVL[m.level]; $('#bMsg').textContent=msg; $('#bSub').textContent=sub;
+  try{document.title=(m.level==='crit'?'(!) ':m.level==='warn'?'(-'+m.deficit+') ':'')+'Frente de Empleo'}catch(e){}
+
+  var pct=Math.min(100,Math.round(m.work/c.dailyTargetMin*100)), apct=c.applyTarget?Math.min(100,Math.round(m.applied/c.applyTarget*100)):100;
+  $('#stats').innerHTML=
+    '<div class="stat '+(m.level==='crit'?'bad':m.level==='done'?'good':'')+'"><span class="k">Trabajo hoy</span><span class="v mono-n">'+m.work+'<small> / '+c.dailyTargetMin+' min</small></span><div class="bar"><i style="width:'+pct+'%"></i></div></div>'
+   +'<div class="stat '+(m.applied>=c.applyTarget?'good':'')+'"><span class="k">Aplicaciones hoy</span><span class="v">'+m.applied+'<small> / '+c.applyTarget+'</small></span><div class="bar"><i style="width:'+apct+'%"></i></div></div>'
+   +'<div class="stat '+(m.cold.length?'bad':'')+'"><span class="k">Tareas frías (+3 días)</span><span class="v">'+m.cold.length+'</span></div>'
+   +'<div class="stat '+(m.waste>=60?'bad':'')+'"><span class="k">Fugas hoy</span><span class="v">'+m.waste+'<small> min</small></span></div>'
+   +'<div class="stat '+(m.streak>=3?'good':'')+'"><span class="k">Racha (50% de la meta)</span><span class="v">'+m.streak+'<small> días</small></span></div>';
+}
+
+/* ---------- Timer ---------- */
+function paintClock(){
+  var run=S.timer&&S.timer.running, ms=run?Date.now()-S.timer.startedAt:0, s=Math.floor(ms/1000);
+  var hh=Math.floor(s/3600), mm=String(Math.floor(s%3600/60)).padStart(2,'0'), ss=String(s%60).padStart(2,'0');
+  var el=$('#clock'); el.textContent=(hh?hh+':':'')+mm+':'+ss; el.classList.toggle('on',!!run);
+  $('#tBtn').textContent=run?'Detener y registrar':'Iniciar';
+  $('#tBtn').classList.toggle('pri',!run);
+}
+function paintTaskSelect(){
+  var sel=$('#tSel'), keep=sel.value, running=S.timer&&S.timer.running;
+  var open=S.tasks.filter(function(t){return t.status!=='done'}).sort(function(a,b){return (a.status==='doing'?0:1)-(b.status==='doing'?0:1)||a.createdAt-b.createdAt});
+  sel.innerHTML='<option value="">Sin tarea (trabajo libre)</option>'+open.map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.title)+'</option>'}).join('');
+  if(running){sel.value=S.timer.taskId||'';sel.disabled=true}else{sel.disabled=!S.canWrite;if(keep)sel.value=keep}
+}
+
+/* ---------- Tareas ---------- */
+function ageText(t){var d=Math.floor((Date.now()-t.createdAt)/DAY);return d<=0?'de hoy':'hace '+d+(d===1?' día':' días')}
+function paintTasks(){
+  var lanes=[['todo','Por empezar'],['doing','En curso'],['done','Hecho']];
+  $('#board').innerHTML=lanes.map(function(L){
+    var list=S.tasks.filter(function(t){return t.status===L[0]});
+    if(L[0]==='done')list=list.sort(function(a,b){return (b.doneAt||0)-(a.doneAt||0)}).slice(0,6);
+    else list=list.sort(function(a,b){return a.createdAt-b.createdAt});
+    var body=list.length?list.map(function(t){
+      var d=Math.floor((Date.now()-t.createdAt)/DAY), chip='';
+      if(L[0]==='todo') chip='<span class="chip '+(d>=7?'crit':d>=3?'warn':'')+'">'+ageText(t)+'</span>';
+      if(L[0]==='done') chip='<span class="chip ok">listo</span>';
+      var acts=L[0]==='todo'?'<button class="btn sm pri" data-act="tstart" data-id="'+esc(t.id)+'">Empezar</button>'
+        :L[0]==='doing'?'<button class="btn sm pri" data-act="tdone" data-id="'+esc(t.id)+'">Hecho</button><button class="btn sm" data-act="tback" data-id="'+esc(t.id)+'">Regresar</button>'
+        :'<button class="btn sm" data-act="tback" data-id="'+esc(t.id)+'">Reabrir</button>';
+      return '<div class="card"><span class="t">'+esc(t.title)+'</span><div class="meta"><span class="chip">'+esc(t.area||'')+'</span>'+chip+'</div><div class="row">'+acts+'<button class="btn sm danger" data-act="tdel" data-id="'+esc(t.id)+'" aria-label="Borrar tarea">Borrar</button></div></div>';
+    }).join(''):'<div class="empty">'+(L[0]==='todo'?'Nada pendiente. Agrega la siguiente tarea concreta.':L[0]==='doing'?'Nada en curso. Empieza una.':'Aún no cierras nada.')+'</div>';
+    return '<div class="lane"><h3><span>'+L[1]+'</span><span class="mono">'+S.tasks.filter(function(t){return t.status===L[0]}).length+'</span></h3>'+body+'</div>';
+  }).join('');
+}
+
+/* ---------- Vacantes ---------- */
+function paintLinks(){
+  var kw=(S.cfg.keywords||'').trim()||'desarrollador', q=encodeURIComponent(kw), slug=encodeURIComponent(kw.replace(/\s+/g,'-'));
+  var L=[['LinkedIn','https://www.linkedin.com/jobs/search/?keywords='+q+'&location=M%C3%A9xico'],
+    ['Indeed','https://mx.indeed.com/jobs?q='+q],['OCC','https://www.occ.com.mx/empleos/de-'+slug+'/'],
+    ['Computrabajo','https://mx.computrabajo.com/trabajo-de-'+slug],['Workana','https://www.workana.com/jobs?query='+q],
+    ['Upwork','https://www.upwork.com/nx/search/jobs/?q='+q]];
+  $('#links').innerHTML=L.map(function(x){return '<a href="'+x[1]+'" target="_blank" rel="noopener">'+x[0]+'</a>'}).join('');
+}
+function paintLeads(){
+  var m=metrics(), tot=S.leads.length, ap=S.leads.filter(function(l){return l.status!=='nuevo'&&l.status!=='descartado'}).length;
+  $('#leadSum').textContent=tot?tot+' guardadas, '+ap+' en proceso':'Sin vacantes guardadas';
+  var list=S.leads.slice().sort(function(a,b){return (a.status==='descartado')-(b.status==='descartado')||b.createdAt-a.createdAt}).slice(0,30);
+  $('#leads').innerHTML=list.length?list.map(function(l){
+    var opts=STATUS.map(function(s){return '<option value="'+s[0]+'"'+(s[0]===l.status?' selected':'')+'>'+s[1]+'</option>'}).join('');
+    var link=l.url?' <a href="'+esc(l.url)+'" target="_blank" rel="noopener">abrir</a>':'';
+    return '<div class="lead"><span class="t">'+esc(l.title)+'</span><div class="acts">'
+      +(l.status==='nuevo'?'<button class="btn sm pri" data-act="lapply" data-id="'+esc(l.id)+'">Ya apliqué</button>':'')
+      +'<select class="lsel" data-id="'+esc(l.id)+'" aria-label="Estado">'+opts+'</select>'
+      +'<button class="btn sm danger" data-act="ldel" data-id="'+esc(l.id)+'" aria-label="Borrar vacante">Borrar</button></div>'
+      +'<span class="meta">'+esc(l.source||'')+' · guardada '+dayStr(l.createdAt)+(l.appliedAt?' · aplicada '+dayStr(l.appliedAt):'')+link+'</span></div>';
+  }).join(''):'<div class="empty">Busca arriba, guarda lo que valga la pena y márcalo cuando apliques.</div>';
+}
+
+/* ---------- Semana y fugas ---------- */
+function paintChart(){
+  var days=[], W=560, H=220, L=8, R=8, T=24, B=28, n=7, tg=S.cfg.dailyTargetMin;
+  for(var i=n-1;i>=0;i--){var t=Date.now()-i*DAY;days.push({d:dayStr(t),lab:new Date(t).toLocaleDateString('es-MX',{weekday:'short'}).replace('.',''),w:0,x:0})}
+  S.log.forEach(function(l){var f=days.filter(function(d){return d.d===l.day})[0];if(f){if(l.kind==='work')f.w+=+l.minutes||0;else if(l.kind==='waste')f.x+=+l.minutes||0}});
+  days[n-1].w+=Math.round(elapsedMin());
+  var max=Math.max(tg*1.15,Math.max.apply(null,days.map(function(d){return Math.max(d.w,d.x)})),60);
+  var ph=H-T-B, gw=(W-L-R)/n, bw=Math.min(26,gw/2-4);
+  var y=function(v){return T+ph-v/max*ph};
+  var s='<line class="base" x1="'+L+'" x2="'+(W-R)+'" y1="'+(T+ph)+'" y2="'+(T+ph)+'"/>'
+    +'<line class="tl" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(tg)+'" y2="'+y(tg)+'"/>'
+    +'<text x="'+(W-R)+'" y="'+(y(tg)-5)+'" text-anchor="end">meta '+tg+'</text>';
+  days.forEach(function(d,i){
+    var cx=L+gw*i+gw/2, wh=d.w/max*ph, xh=d.x/max*ph;
+    s+='<rect class="bw" x="'+(cx-bw-1)+'" y="'+(T+ph-wh)+'" width="'+bw+'" height="'+wh+'" rx="2"/>'
+      +'<rect class="bx" x="'+(cx+1)+'" y="'+(T+ph-xh)+'" width="'+bw+'" height="'+xh+'" rx="2"/>';
+    if(d.w)s+='<text x="'+(cx-bw/2-1)+'" y="'+(T+ph-wh-4)+'" text-anchor="middle">'+d.w+'</text>';
+    if(d.x)s+='<text x="'+(cx+bw/2+1)+'" y="'+(T+ph-xh-4)+'" text-anchor="middle">'+d.x+'</text>';
+    s+='<text x="'+cx+'" y="'+(H-8)+'" text-anchor="middle">'+d.lab+(i===n-1?' (hoy)':'')+'</text>';
+  });
+  $('#chart').innerHTML=s;
+}
+function paintWaste(){
+  var list=S.log.filter(function(l){return l.kind==='waste'}).sort(function(a,b){return b.ts-a.ts}).slice(0,8);
+  $('#waste').innerHTML=list.length?list.map(function(l){
+    return '<div class="w"><span>'+esc(l.cat||'Fuga')+(l.note?': '+esc(l.note):'')+' <span class="muted">'+l.day.slice(5)+'</span></span><span class="mono">'+(+l.minutes||0)+' min <button class="btn sm danger" data-act="wdel" data-id="'+esc(l.id)+'" aria-label="Borrar registro">x</button></span></div>';
+  }).join(''):'<div class="empty">Sin fugas registradas en 15 días. Si hubo alguna, anótala. Lo que no se mide no se corrige.</div>';
+}
+function paintCfg(){
+  var c=S.cfg,set=function(id,v){var e=$(id);if(document.activeElement!==e)e.value=v};
+  set('#cTarget',c.dailyTargetMin);set('#cApply',c.applyTarget);set('#cStart',c.startHour);set('#cEnd',c.endHour);set('#kw',c.keywords);
+}
+function paintAll(){paintTop();paintClock();paintTaskSelect();paintTasks();paintLinks();paintLeads();paintChart();paintWaste();paintCfg();applyLock()}
+function applyLock(){
+  document.querySelectorAll('button[data-act],form button,form input,form select,.cfg input').forEach(function(e){
+    if(e.id==='coachBtn'||e.id==='coachStop')return;
+    if(!S.canWrite)e.disabled=true;
+  });
+}
+
+/* ---------- Escrituras ---------- */
+function col(n){return S.db.collection(n)}
+function ensure(){if(!S.db||!S.canWrite){toast('Sin permiso para guardar en esta vista.');return false}return true}
+var timerLock=false;
+async function toggleTimer(){
+  if(!ensure()||timerLock)return; timerLock=true;
+  try{
+    if(S.timer&&S.timer.running){
+      var mins=Math.max(1,Math.round((Date.now()-S.timer.startedAt)/60000)), t=S.tasks.filter(function(x){return x.id===S.timer.taskId})[0], now=Date.now();
+      await S.db.doc('state/timer').set({running:false});
+      await col('log').add({kind:'work',minutes:mins,note:t?t.title:'Trabajo libre',taskId:S.timer.taskId||null,ts:now,day:dayStr(now)});
+      toast('Registrados '+mins+' min');
+    }else{
+      var id=$('#tSel').value||null, now2=Date.now();
+      await S.db.doc('state/timer').set({running:true,startedAt:now2,taskId:id});
+      var tk=S.tasks.filter(function(x){return x.id===id})[0];
+      if(tk&&tk.status==='todo')await col('tasks').doc(id).update({status:'doing',startedAt:now2});
+    }
+  }catch(e){toast('No se guardó: '+((e&&(e.message||e.code))||'error'))}
+  timerLock=false;
+}
+document.addEventListener('click',function(ev){
+  var b=ev.target.closest('[data-act]'); if(!b)return;
+  var act=b.dataset.act, id=b.dataset.id;
+  if(act==='coach'){return coach()} if(act==='coachstop'){return coachCtl&&coachCtl.abort()}
+  if(!ensure())return;
+  if(act==='timer')return toggleTimer();
+  if(act==='manual'){var m=Math.round(+$('#mMin').value);if(!(m>=1))return toast('Pon minutos válidos.');var n=Date.now();return run(col('log').add({kind:'work',minutes:m,note:'Registro manual',ts:n,day:dayStr(n)}),'Sumados '+m+' min')}
+  if(act==='tstart')return run(col('tasks').doc(id).update({status:'doing',startedAt:Date.now()}));
+  if(act==='tdone')return run(col('tasks').doc(id).update({status:'done',doneAt:Date.now()}),'Tarea cerrada');
+  if(act==='tback')return run(col('tasks').doc(id).update({status:'todo'}));
+  if(act==='tdel')return run(col('tasks').doc(id).delete());
+  if(act==='lapply')return run(col('leads').doc(id).update({status:'aplicado',appliedAt:Date.now()}),'Aplicación registrada');
+  if(act==='ldel')return run(col('leads').doc(id).delete());
+  if(act==='wdel')return run(col('log').doc(id).delete());
+  if(act==='savecfg'){
+    var c={dailyTargetMin:Math.round(+$('#cTarget').value)||240,applyTarget:Math.max(0,Math.round(+$('#cApply').value)),startHour:Math.min(23,Math.max(0,Math.round(+$('#cStart').value))),endHour:Math.min(24,Math.max(1,Math.round(+$('#cEnd').value))),keywords:$('#kw').value.trim()||S.cfg.keywords};
+    if(c.endHour<=c.startHour)return toast('La hora final debe ser mayor que la inicial.');
+    return run(S.db.doc('state/config').set(c),'Ajustes guardados');
+  }
+});
+document.addEventListener('change',function(ev){
+  var s=ev.target.closest('.lsel');
+  if(s){if(!ensure())return;var id=s.dataset.id,v=s.value,l=S.leads.filter(function(x){return x.id===id})[0],p={status:v};if(v==='aplicado'&&l&&!l.appliedAt)p.appliedAt=Date.now();run(col('leads').doc(id).update(p))}
+  if(ev.target.id==='kw'&&S.db&&S.canWrite){var v2=ev.target.value.trim();if(v2&&v2!==S.cfg.keywords)run(S.db.doc('state/config').set(Object.assign({},S.cfg,{keywords:v2})))}
+});
+$('#fTask').addEventListener('submit',function(e){e.preventDefault();if(!ensure())return;var t=$('#taskTitle').value.trim();if(!t)return;
+  run(col('tasks').add({title:t,area:$('#taskArea').value,status:'todo',createdAt:Date.now()}),'Tarea agregada');$('#taskTitle').value=''});
+$('#fLead').addEventListener('submit',function(e){e.preventDefault();if(!ensure())return;var t=$('#leadTitle').value.trim();if(!t)return;
+  var u=$('#leadUrl').value.trim(); if(u&&!/^https?:\/\//i.test(u))u='https://'+u;
+  run(col('leads').add({title:t,source:$('#leadSrc').value,url:u,status:'nuevo',createdAt:Date.now()}),'Vacante guardada');$('#leadTitle').value='';$('#leadUrl').value=''});
+$('#fWaste').addEventListener('submit',function(e){e.preventDefault();if(!ensure())return;var m=Math.round(+$('#wMin').value);if(!(m>=1))return toast('Pon los minutos.');var n=Date.now();
+  run(col('log').add({kind:'waste',minutes:m,cat:$('#wCat').value,note:$('#wNote').value.trim(),ts:n,day:dayStr(n)}),'Fuga registrada');$('#wNote').value=''});
+
+/* ---------- Coach (Claude) ---------- */
+var coachCtl=null;
+async function coach(){
+  if(!S.sample){return toast('Claude no está disponible en esta vista.')}
+  var m=metrics(), c=S.cfg, week={};
+  S.log.forEach(function(l){var d=week[l.day]=week[l.day]||{w:0,x:0};if(l.kind==='work')d.w+=+l.minutes||0;else d.x+=+l.minutes||0});
+  var wasteCats={};S.log.filter(function(l){return l.kind==='waste'}).forEach(function(l){wasteCats[l.cat]=(wasteCats[l.cat]||0)+(+l.minutes||0)});
+  var data={hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),metaMin:c.dailyTargetMin,trabajoHoyMin:m.work,esperadoAEstaHoraMin:m.expected,fugasHoyMin:m.waste,
+    aplicacionesHoy:m.applied,metaAplicaciones:c.applyTarget,rachaDias:m.streak,
+    tareasFrias:m.cold.map(function(t){return {titulo:t.title,dias:Math.floor((Date.now()-t.createdAt)/DAY)}}),
+    tareasEnCurso:S.tasks.filter(function(t){return t.status==='doing'}).map(function(t){return t.title}),
+    vacantesNuevasSinAplicar:S.leads.filter(function(l){return l.status==='nuevo'}).length,
+    diasUltimaSemana:week,fugasPorTipo:wasteCats};
+  var prompt='Eres mi coach de disciplina para conseguir trabajo. Hablo español mexicano coloquial y me gusta que me hablen directo, sin rodeos. Sé firme y concreto, sin insultarme ni inventar datos, sin frases motivacionales vacías. Usa solo los datos de abajo. Responde en máximo 110 palabras con este formato:\n1) Diagnóstico en dos líneas.\n2) La única tarea para los próximos 25 minutos, nombrada tal cual está en mis datos si existe una.\n3) Lo que tengo que dejar de hacer hoy.\n\nDatos:\n'+JSON.stringify(data);
+  var out=$('#coach'), btn=$('#coachBtn'), stop=$('#coachStop');
+  coachCtl=new AbortController(); btn.disabled=true; stop.hidden=false; out.textContent='Pensando...'; $('#coachNote').textContent='';
+  try{
+    var r=await S.sample(prompt,{signal:coachCtl.signal,cache:false,onText:function(u){out.textContent=u.text}});
+    if(r.truncated)$('#coachNote').textContent='Respuesta cortada. Vuelve a pedirla.';
+  }catch(e){
+    if(e&&e.text)out.textContent=e.text; else out.textContent='';
+    var msgs={not_granted:'Permitiste que la página no use Claude. Cambia eso en el menú de permisos del artefacto.',rate_limited:'Demasiadas peticiones. Espera un rato.',sampling_disabled:'Claude no está disponible en tu cuenta para esto.'};
+    if(!e||e.code!=='cancelled')$('#coachNote').textContent=msgs[e&&e.code]||'No pude contestar. Intenta de nuevo.';
+    if(!out.textContent)out.textContent='Pulsa el botón para que Claude revise cómo vas hoy y esta semana.';
+  }finally{btn.disabled=false;stop.hidden=true;coachCtl=null}
+}
+
+/* ---------- Arranque ---------- */
+$('#date').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+paintAll();
+async function use(n){try{return (window.claude&&await window.claude.use(n))||null}catch(e){return null}}
+(async function(){
+  var res=await Promise.all([use('db'),use('sample'),use('user')]);
+  S.db=res[0]; S.sample=res[1]; var user=res[2];
+  if(!S.sample){$('#coachBtn').disabled=true;$('#coachNote').textContent='Claude no está disponible en esta vista.'}
+  if(!S.db){S.canWrite=false;notice('Esta vista no tiene base de datos. Ábrela desde claude.ai con tu sesión para guardar tus datos.');paintAll();return}
+  try{if(user&&user.can){var w=await user.can('data.write');if(w===false){S.canWrite=false;notice('Esta vista es de solo lectura. Para registrar necesitas permiso de colaborador.')}}}catch(e){}
+  var onErr=function(e){notice('No se pudo leer la base de datos ('+((e&&e.code)||'error')+').')};
+  var mapDocs=function(s){return s.docs.map(function(d){var o=d.data()||{};o.id=d.id;return o})};
+  col('tasks').onSnapshot(function(s){S.tasks=mapDocs(s);paintAll()},onErr);
+  col('leads').onSnapshot(function(s){S.leads=mapDocs(s);paintAll()},onErr);
+  col('log').where('ts','>=',Date.now()-15*DAY).orderBy('ts','desc').limit(500).onSnapshot(function(s){S.log=mapDocs(s);paintAll()},onErr);
+  S.db.doc('state/config').onSnapshot(function(s){if(s.exists)S.cfg=Object.assign({},S.cfg,s.data());paintAll()},onErr);
+  S.db.doc('state/timer').onSnapshot(function(s){S.timer=s.exists?s.data():{running:false};paintAll()},onErr);
+})();
+setInterval(function(){paintTop();paintClock();paintChart()},1000);
+})();
+</script>
