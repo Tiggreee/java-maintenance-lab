@@ -244,6 +244,39 @@ registerProcessor('noise-gate', NoiseGate);
     await ctx.audioWorklet.addModule(gateUrl);
   }
 
+  // Crossover de 2 vías para amplificadores donde un canal mueve los agudos y el otro los medios.
+  // Suma la música a mono (L+R)/2 y la separa con Linkwitz-Riley de 24 dB/oct (dos Butterworth en cascada):
+  // la suma de ambas salidas es plana, así que el subwoofer del amplificador (que suma L+R) sigue recibiendo los graves.
+  const BUTTER_Q_DB = 20 * Math.log10(Math.SQRT1_2); // Web Audio usa Q en dB para pasa-altos/pasa-bajos
+  function buildCrossover(ctx) {
+    const input = ctx.createGain();
+    input.channelCount = 1;
+    input.channelCountMode = 'explicit';
+    input.channelInterpretation = 'speakers';
+    const mk = (type) => { const f = ctx.createBiquadFilter(); f.type = type; f.Q.value = BUTTER_Q_DB; return f; };
+    const hp = [mk('highpass'), mk('highpass')], lp = [mk('lowpass'), mk('lowpass')];
+    const gHigh = ctx.createGain(), gLow = ctx.createGain(), output = ctx.createChannelMerger(2);
+    input.connect(hp[0]); hp[0].connect(hp[1]); hp[1].connect(gHigh);
+    input.connect(lp[0]); lp[0].connect(lp[1]); lp[1].connect(gLow);
+    let side = '';
+    return {
+      input, output,
+      set(cfg, instant) {
+        const fc = clamp(cfg.fc, 200, 12000);
+        for (const f of hp.concat(lp)) setP(f.frequency, fc, ctx, instant);
+        setP(gHigh.gain, db2lin(cfg.highTrim), ctx, instant);
+        setP(gLow.gain, db2lin(cfg.lowTrim), ctx, instant);
+        if (cfg.highSide !== side) {
+          side = cfg.highSide;
+          gHigh.disconnect();
+          gLow.disconnect();
+          gHigh.connect(output, 0, side === 'R' ? 1 : 0);
+          gLow.connect(output, 0, side === 'R' ? 0 : 1);
+        }
+      },
+    };
+  }
+
   const SINK_OK = typeof AudioContext !== 'undefined' && typeof AudioContext.prototype.setSinkId === 'function';
 
   function setP(param, v, ctx, instant) {
@@ -295,6 +328,7 @@ registerProcessor('noise-gate', NoiseGate);
       comp: { on: false, threshold: -24, ratio: 3, attack: 5, release: 150, makeup: 0 },
       limiter: { on: true, ceiling: -1 },
       webrtc: { ns: false, aec: false, agc: false },
+      xo: { on: false, highSide: 'L', fc: 2500, highTrim: 0, lowTrim: 0 },
       auto: { target: id === 'mic' ? 'voice-broadcast' : 'music', dur: 8, strength: 70 },
     };
   }
@@ -317,7 +351,7 @@ registerProcessor('noise-gate', NoiseGate);
     const d = defaultState(id), s = store.get('eqlibre.state.' + id, null);
     if (!s || typeof s !== 'object') return d;
     const out = Object.assign({}, d, s);
-    for (const k of ['gate', 'comp', 'limiter', 'webrtc', 'auto']) out[k] = Object.assign({}, d[k], s[k] || {});
+    for (const k of ['gate', 'comp', 'limiter', 'webrtc', 'xo', 'auto']) out[k] = Object.assign({}, d[k], s[k] || {});
     out.bands = sanitizeBands(s.bands);
     if (!out.bands.length && !Array.isArray(s.bands)) out.bands = d.bands;
     if (!['device', 'display', 'file', 'noise'].includes(out.sourceType)) out.sourceType = 'device';
@@ -372,6 +406,7 @@ registerProcessor('noise-gate', NoiseGate);
       this.limiter.attack.value = 0.001;
       this.limiter.release.value = 0.08;
       this.mon = ctx.createGain();
+      if (!this.isMic) this.xo = buildCrossover(ctx);
       if (this.isMic) {
         try {
           await loadGate(ctx);
@@ -437,6 +472,7 @@ registerProcessor('noise-gate', NoiseGate);
       this.limiter.threshold.value = s.limiter.ceiling;
       const muted = !s.monitor || (s.outputId === 'none' && !SINK_OK);
       setP(this.mon.gain, muted ? 0 : 1, ctx, instant);
+      if (this.xo) this.xo.set(s.xo, instant);
       if (this.gate) {
         const p = this.gate.parameters;
         p.get('threshold').value = s.gate.threshold;
@@ -447,8 +483,9 @@ registerProcessor('noise-gate', NoiseGate);
     rewire() {
       if (!this.ctx) return;
       const s = this.s;
-      const all = [this.input, this.gate, this.preamp, ...this.filters, this.comp, this.makeup, this.out, this.limiter, this.mon];
-      for (const n of all) if (n) { try { n.disconnect(); } catch (e) { /* sin conexiones */ } }
+      const outOf = (n) => n.output || n, inOf = (n) => n.input || n;
+      const all = [this.input, this.gate, this.preamp, ...this.filters, this.comp, this.makeup, this.xo, this.out, this.limiter, this.mon];
+      for (const n of all) if (n) { try { outOf(n).disconnect(); } catch (e) { /* sin conexiones */ } }
       const chain = [this.input];
       if (this.gate && s.gate.on) chain.push(this.gate);
       if (!s.bypass) {
@@ -456,9 +493,11 @@ registerProcessor('noise-gate', NoiseGate);
         this.filters.forEach((f, i) => { if (s.bands[i] && s.bands[i].on) chain.push(f); });
       }
       if (s.comp.on) chain.push(this.comp, this.makeup);
+      // El crossover nunca se salta con A/B: sin él, los agudos recibirían graves.
+      if (this.xo && s.xo.on) chain.push(this.xo);
       chain.push(this.out);
       if (s.limiter.on) chain.push(this.limiter);
-      for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]);
+      for (let i = 0; i < chain.length - 1; i++) outOf(chain[i]).connect(inOf(chain[i + 1]));
       const last = chain[chain.length - 1];
       last.connect(this.anaPost);
       last.connect(this.mon);
@@ -939,7 +978,14 @@ registerProcessor('noise-gate', NoiseGate);
       const g = pc.ctx.createGain();
       g.gain.value = 0;
       nz.connect(g);
-      g.connect(pc.ctx.destination);
+      if (pc.s.xo.on) {
+        const xo = buildCrossover(pc.ctx);
+        xo.set(pc.s.xo, true);
+        g.connect(xo.input);
+        xo.output.connect(pc.ctx.destination);
+      } else {
+        g.connect(pc.ctx.destination);
+      }
       nz.start();
       g.gain.setTargetAtTime(1, pc.ctx.currentTime, 0.15);
       prog(0.15, 'Reproduciendo ruido rosa y midiendo…');
@@ -978,6 +1024,13 @@ registerProcessor('noise-gate', NoiseGate);
     L.push('# ' + new Date().toLocaleString());
     if (ch.isMic) L.push('# Micrófono: en el Configurator de Equalizer APO marca tu micrófono en «Capture devices».');
     L.push('Preamp: ' + ch.preampDb().toFixed(1) + ' dB');
+    const xo = !ch.isMic && s.xo.on ? s.xo : null;
+    if (xo) {
+      const k = (t) => (0.5 * db2lin(t)).toFixed(4);
+      const hi = xo.highSide === 'R' ? 'R' : 'L', lo = hi === 'L' ? 'R' : 'L';
+      L.push('# Bocinas: la misma música (mono) en los dos canales; agudos en ' + hi + ', medios y graves en ' + lo + '.');
+      L.push('Copy: ' + hi + '=' + k(xo.highTrim) + '*L+' + k(xo.highTrim) + '*R ' + lo + '=' + k(xo.lowTrim) + '*L+' + k(xo.lowTrim) + '*R');
+    }
     s.bands.forEach((b, i) => {
       let body;
       switch (b.t) {
@@ -991,6 +1044,17 @@ registerProcessor('noise-gate', NoiseGate);
       }
       L.push('Filter ' + (i + 1) + ': ' + (b.on ? 'ON' : 'OFF') + ' ' + body);
     });
+    if (xo) {
+      const hi = xo.highSide === 'R' ? 'R' : 'L', lo = hi === 'L' ? 'R' : 'L', fc = fmtF(xo.fc);
+      L.push('# Crossover Linkwitz-Riley 24 dB/oct en ' + fc + ' Hz');
+      L.push('Channel: ' + hi);
+      L.push('Filter: ON HPQ Fc ' + fc + ' Hz Q 0.707');
+      L.push('Filter: ON HPQ Fc ' + fc + ' Hz Q 0.707');
+      L.push('Channel: ' + lo);
+      L.push('Filter: ON LPQ Fc ' + fc + ' Hz Q 0.707');
+      L.push('Filter: ON LPQ Fc ' + fc + ' Hz Q 0.707');
+      L.push('Channel: all');
+    }
     return L.join('\r\n') + '\r\n';
   }
 
@@ -1160,6 +1224,13 @@ registerProcessor('noise-gate', NoiseGate);
     const total = new Float64Array(n);
     ch.s.bands.forEach((b, i) => { if (b.on) for (let k = 0; k < n; k++) total[k] += G.cache.per[i][k]; });
     G.cache.total = total;
+    G.cache.xo = null;
+    if (!ch.isMic && ch.s.xo.on) {
+      const lr = (t) => { const b = { t, f: ch.s.xo.fc, g: 0, q: Math.SQRT1_2 }; const r = bandResponse(b, freqs, ch.fs, new Float64Array(n)); return bandResponse(b, freqs, ch.fs, r); };
+      const hiR = lr('HP'), loR = lr('LP');
+      for (let k = 0; k < n; k++) { hiR[k] += ch.s.xo.highTrim; loR[k] += ch.s.xo.lowTrim; }
+      G.cache.xo = [hiR, loR];
+    }
     G.cache.key = key;
     return G.cache;
   }
@@ -1302,6 +1373,22 @@ registerProcessor('noise-gate', NoiseGate);
     c.globalAlpha = s.bypass ? 0.35 : 1;
     c.stroke();
     c.globalAlpha = 1;
+    if (cc.xo) {
+      c.setLineDash([6, 4]);
+      c.lineWidth = 1.5;
+      c.strokeStyle = G.colors.text;
+      c.globalAlpha = 0.55;
+      for (const r of cc.xo) {
+        c.beginPath();
+        for (let k = 0; k < n; k++) {
+          const x = fx(cc.freqs[k]), y = gy(clamp(r[k], -G.range * 1.2, G.range * 1.2));
+          if (k === 0) c.moveTo(x, y); else c.lineTo(x, y);
+        }
+        c.stroke();
+      }
+      c.setLineDash([]);
+      c.globalAlpha = 1;
+    }
     c.restore();
 
     // puntos de control
@@ -1686,6 +1773,14 @@ registerProcessor('noise-gate', NoiseGate);
       $('#outGain').value = s.outGain;
       $('#gateBox').hidden = !cur.isMic;
       $('#webrtcBox').hidden = !cur.isMic;
+      $('#xoCard').hidden = cur.isMic;
+      $('#lgXo').hidden = cur.isMic || !s.xo.on;
+      $('#xoOn').checked = s.xo.on;
+      $('#xoSide').value = s.xo.highSide;
+      $('#xoFc').value = s.xo.fc;
+      $('#xoHi').value = s.xo.highTrim;
+      $('#xoLo').value = s.xo.lowTrim;
+      $$('#xoCard .xo-body').forEach((el) => { el.hidden = !s.xo.on; });
       $('#gateOn').checked = s.gate.on;
       $('#gateOn').disabled = !!cur.gateError;
       $('#gateThr').value = s.gate.threshold;
@@ -1721,6 +1816,9 @@ registerProcessor('noise-gate', NoiseGate);
       $('#compRelTxt').textContent = s.comp.release + ' ms';
       $('#compMkTxt').textContent = fmtDb(s.comp.makeup);
       $('#limCeilTxt').textContent = s.limiter.ceiling.toFixed(1) + ' dB';
+      $('#xoFcTxt').textContent = fmtHz(s.xo.fc);
+      $('#xoHiTxt').textContent = fmtDb(s.xo.highTrim);
+      $('#xoLoTxt').textContent = fmtDb(s.xo.lowTrim);
     },
   };
 
@@ -2061,6 +2159,11 @@ registerProcessor('noise-gate', NoiseGate);
     bindRange('#compRel', (v) => { cur.s.comp.release = v; });
     bindRange('#compMk', (v) => { cur.s.comp.makeup = v; });
     bindRange('#limCeil', (v) => { cur.s.limiter.ceiling = v; });
+    bindRange('#xoFc', (v) => { cur.s.xo.fc = v; });
+    bindRange('#xoHi', (v) => { cur.s.xo.highTrim = v; });
+    bindRange('#xoLo', (v) => { cur.s.xo.lowTrim = v; });
+    $('#xoOn').addEventListener('change', (e) => { cur.s.xo.on = e.target.checked; cur.changed('wire'); ui.renderDyn(); });
+    $('#xoSide').addEventListener('change', (e) => { cur.s.xo.highSide = e.target.value === 'R' ? 'R' : 'L'; cur.changed('param'); });
     $('#gateOn').addEventListener('change', (e) => { cur.s.gate.on = e.target.checked; cur.changed('wire'); });
     $('#compOn').addEventListener('change', (e) => { cur.s.comp.on = e.target.checked; cur.changed('wire'); });
     $('#limOn').addEventListener('change', (e) => { cur.s.limiter.on = e.target.checked; cur.changed('wire'); });
@@ -2128,7 +2231,7 @@ registerProcessor('noise-gate', NoiseGate);
   }
 
   // Exponer para pruebas y depuración desde la consola.
-  window.EQLibre = { channels, parseApo, toApo, toGraphicEq, coeffs, magDb, responseDb, designCorrection, fitBands, TARGETS, THIRD, applyProfile, importText };
+  window.EQLibre = { channels, buildCrossover, parseApo, toApo, toGraphicEq, coeffs, magDb, responseDb, designCorrection, fitBands, TARGETS, THIRD, applyProfile, importText };
 
   boot();
 })();

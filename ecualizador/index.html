@@ -115,6 +115,7 @@
           <span><i class="sw curve"></i>Curva EQ</span>
           <span><i class="sw post"></i>Espectro procesado</span>
           <span><i class="sw pre"></i>Original</span>
+          <span id="lgXo" hidden><i class="sw xo"></i>Corte medios / agudos</span>
         </div>
       </div>
     </div>
@@ -196,6 +197,28 @@
           <button id="btnImport" class="btn primary">Importar texto</button>
           <label class="btn ghost file-btn">Abrir archivo…<input type="file" id="importFile" accept=".txt,.json,text/plain,application/json" hidden></label>
         </div>
+      </div>
+    </div>
+
+    <div class="card" id="xoCard" hidden>
+      <div class="card-head">
+        <h2>Bocinas: medios y agudos</h2>
+        <label class="switch sm"><input type="checkbox" id="xoOn"><span>Activo</span></label>
+      </div>
+      <p class="small muted">Para amplificadores con las bocinas pequeñas (agudos) en un canal y los medios en el otro. Manda la misma música a los dos canales y la separa por frecuencia. El subwoofer del amplificador sigue recibiendo los graves.</p>
+      <label class="field xo-body">
+        <span>Las bocinas pequeñas (agudos) están en</span>
+        <select id="xoSide">
+          <option value="L">Canal izquierdo (L)</option>
+          <option value="R">Canal derecho (R)</option>
+        </select>
+      </label>
+      <div class="xo-body">
+        <div class="slider-row"><span>Corte</span><input type="range" id="xoFc" min="800" max="6000" step="50"><output id="xoFcTxt"></output></div>
+        <p class="small muted">Bocinas pequeñas de cono (3–4"): 1.5–2.5 kHz · tweeters de domo o bala: 3.5–5 kHz.</p>
+        <div class="slider-row"><span>Nivel agudos</span><input type="range" id="xoHi" min="-12" max="3" step="0.5"><output id="xoHiTxt"></output></div>
+        <div class="slider-row"><span>Nivel medios</span><input type="range" id="xoLo" min="-12" max="3" step="0.5"><output id="xoLoTxt"></output></div>
+        <p class="small muted">Para igualar niveles: Fuente «Ruido rosa», y baja el lado que sobresalga hasta que suene parejo.</p>
       </div>
     </div>
 
@@ -314,7 +337,10 @@
     </ol>
     <p><b>Opción C (solo analizar):</b> Fuente «Audio del sistema (compartir pantalla)» o la entrada «Mezcla estéreo». Úsalo para ver el espectro y para el Ajuste automático; luego exporta a Equalizer APO. No envíes ese audio a los mismos parlantes: se duplica y hace eco.</p>
 
-    <h3>3 · Perfiles de marcas</h3>
+    <h3>3 · Amplificador con agudos en un canal y medios en el otro</h3>
+    <p>Si conectaste las bocinas pequeñas a un canal (por ejemplo L) y los medios al otro (R), activa en el canal <b>Audio del PC</b> la tarjeta <b>Bocinas: medios y agudos</b>. La app manda la misma música a ambos lados, deja solo los agudos en las pequeñas y los medios y graves en el otro canal; el subwoofer del amplificador sigue recibiendo los graves. Elige en qué canal están las pequeñas, ajusta el corte y empareja los niveles con el ruido rosa. Después exporta a Equalizer APO: el crossover también se exporta.</p>
+
+    <h3>3b · Perfiles de marcas</h3>
     <p><b>Corregir mis audífonos</b>: busca tu modelo y aplícalo en el canal Audio del PC. Sonarán neutros y balanceados (curva Harman).<br>
     <b>Emular su sonido</b>: después de corregir los tuyos, agrega la firma de otro modelo (p. ej. suena como unos Beats o unos Sennheiser HD 600).</p>
 

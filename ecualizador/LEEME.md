@@ -50,6 +50,15 @@ Los perfiles de «Marcas» son solo para audífonos. Para parlantes:
 4. Compara con **A/B**. Si hay demasiados graves, baja primero la perilla del subwoofer.
 5. **Exportar → config.txt** y cárgalo en Equalizer APO para que quede fijo en todo Windows.
 
+### Amplificador con agudos en un canal y medios en el otro
+Si las bocinas pequeñas van a un canal del amplificador (por ejemplo L) y los medios al otro (R), la música estéreo sale repartida mal: lo que la canción manda a la izquierda solo suena en las pequeñas. Activa **Bocinas: medios y agudos** en el canal **Audio del PC**:
+1. Elige en qué canal están las bocinas pequeñas.
+2. Corte: 1.5–2.5 kHz si las pequeñas son de cono (3–4"); 3.5–5 kHz si son tweeters de domo o bala.
+3. Fuente «Ruido rosa» → baja el nivel del lado que sobresalga hasta que suene parejo.
+4. Exporta a Equalizer APO: el crossover (Linkwitz-Riley 24 dB/oct) también se exporta.
+
+El canal de medios conserva los graves a propósito: la salida de subwoofer de los amplificadores 2.1 suele sumar L+R, y si se los quitáramos el subwoofer se quedaría sin señal.
+
 ## Problemas comunes
 
 | Síntoma | Solución |

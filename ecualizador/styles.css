@@ -221,6 +221,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); min-width: 0; }
 .sw.curve { background: var(--curve); }
 .sw.post { background: var(--spec-post-line); }
 .sw.pre { background: var(--spec-pre); }
+.sw.xo { background: repeating-linear-gradient(90deg, var(--text) 0 4px, transparent 4px 7px); opacity: .6; }
 
 /* ---------- tabla de bandas ---------- */
 .table-wrap { overflow-x: auto; }
@@ -269,7 +270,7 @@ table.bands td.type-cell { min-width: 130px; }
 .dyn-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
 .dyn p { margin: 0 0 6px; }
 .dyn .switch { margin: 3px 0; display: flex; }
-.slider-row { display: grid; grid-template-columns: 70px 1fr 64px; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+.slider-row { display: grid; grid-template-columns: 92px 1fr 64px; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
 .slider-row:has(> input:first-child) { grid-template-columns: 1fr 64px; }
 .slider-row output { text-align: right; color: var(--text); }
 
